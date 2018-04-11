@@ -1,6 +1,5 @@
 
-#include "fsmid_def.h"
-#include "fsmid_log.h"
+#include "fs_middle.h"
 #include <string.h>
 
 #undef  _FSLOG_INFO_MSG_
@@ -12,7 +11,7 @@
 #endif  //#if defined(_FSLOG_INFO_MSG_)
 
 static struct list_head headMainLog;
-static struct list_head headFiltedLog;
+FSLOG **headFiltedLog = NULL;
 static unsigned int nFiltedLog = 0;
 static const FSLOG_INTERFACE *logInterface = NULL;
 
@@ -179,8 +178,15 @@ static int __fslog_plus_write_counter(FSLOG* pLog)
 void FSLOG_Init(const FSLOG_INTERFACE *pInterface)
 {
 	INIT_LIST_HEAD(&headMainLog);
-	INIT_LIST_HEAD(&headFiltedLog);
+	//INIT_LIST_HEAD(&headFiltedLog);
+	headFiltedLog = fsmid_malloc(FSLOG*,32);
+	headFiltedLog[nFiltedLog] = NULL;
 	logInterface = pInterface;
+}
+
+const FSLOG_INTERFACE *FSLOG_GetRegistedInterface()
+{
+	return logInterface;
 }
 
 // void FSLOG_PushEvent(FSLOG* pLog)
@@ -351,11 +357,13 @@ int FSLOG_ReadFmt(FSLOG *pLog, unsigned int index, char *buf)
 	int len;
 	unsigned char* data;
 
-	if(!pLog->pFunction)
-		return 0;
-
 	if(index == -1UL)
-		return pLog->pFunction->format_header(buf,pLog);
+	{
+		if(pLog->pFunction)
+			return pLog->pFunction->format_header(buf,pLog);
+		else
+			return 0;
+	}
 
 	data = fsmid_malloc(unsigned char,FSLOG_GetUnitSize(pLog));
 	fsmid_assert(data,__FUNCTION__,__LINE__);
@@ -365,7 +373,13 @@ int FSLOG_ReadFmt(FSLOG *pLog, unsigned int index, char *buf)
 		return 0;
 	}
 
-	len = pLog->pFunction->format_data(buf,data);
+	if(pLog->pFunction)
+		len = pLog->pFunction->format_data(buf,data);
+	else
+	{
+		len = FSLOG_GetUnitSize(pLog);
+		memcpy(buf,data,len);
+	}
 	fsmid_free(data);
 
 	return len;
@@ -471,15 +485,14 @@ static bool __is_filted_name(const char *pFileName, const char *pFilterName)
 
 void FSLOG_ReleaseFilter()
 {
-//	list_head *container;
-	FSLOG *iterator;
-
-	while(headFiltedLog.next != headFiltedLog.prev)
-	{
-		iterator = list_first_entry(&headFiltedLog,FSLOG,_node);
-		list_del(&iterator->_node);
-		list_add_tail(&iterator->_node,&headMainLog);
-	}
+// 	FSLOG *iterator;
+// 
+// 	while(headFiltedLog.next != headFiltedLog.prev)
+// 	{
+// 		iterator = list_first_entry(&headFiltedLog,FSLOG,_node);
+// 		list_del(&iterator->_node);
+// 		list_add_tail(&iterator->_node,&headMainLog);
+// 	}
 	nFiltedLog = 0;
 }
 
@@ -490,20 +503,22 @@ unsigned int FSLOG_Filter(const char *pCondition)
 
 	if(nFiltedLog)
 		FSLOG_ReleaseFilter();
-Looper:
+//Looper:
 	list_for_each(container,&headMainLog)
 	{
 		iterator = list_entry(container,FSLOG,_node);
 		if(__is_filted_name(iterator->name,pCondition))
 		if(iterator->unitNumber)
 		{
-			list_del(&iterator->_node);
-			list_add_tail(&iterator->_node,&headFiltedLog);
-			nFiltedLog++;
 			//fsmid_info("%-40s filted. UNIT:%4d. SIZE:%6d.\n",iterator->name,iterator->unitNumber,iterator->formatedSize);
-			goto Looper;
+			headFiltedLog[nFiltedLog] = iterator;
+			nFiltedLog++;
+// 			list_del(&iterator->_node);
+// 			list_add_tail(&iterator->_node,&headFiltedLog);
+//			goto Looper;
 		}
 	}
+	headFiltedLog[nFiltedLog] = NULL;
 	return nFiltedLog;
 }
 
@@ -514,16 +529,19 @@ unsigned int FSLOG_GetFiltedCount()
 
 FSLOG *FSLOG_GetFiltedItem(unsigned int index)
 {
-	int i = 0;
-	list_head *container;
-	FSLOG *iterator;
-
-	list_for_each(container,&headFiltedLog)
-	{
-		iterator = list_entry(container,FSLOG,_node);
-		if(i == index)
-			return iterator;
-		i++;
-	}
-	return NULL;
+// 	int i = 0;
+// 	list_head *container;
+// 	FSLOG *iterator;
+// 
+// 	list_for_each(container,&headFiltedLog)
+// 	{
+// 		iterator = list_entry(container,FSLOG,_node);
+// 		if(i == index)
+// 			return iterator;
+// 		i++;
+// 	}
+// 	return NULL;
+	if(index >= nFiltedLog)
+		return NULL;
+	return headFiltedLog[index];
 }

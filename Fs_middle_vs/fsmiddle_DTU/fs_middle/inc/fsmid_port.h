@@ -33,21 +33,9 @@ extern void test_free(void *);
 
 #define fsmid_get_systime(tm)		//(tm)
 
-#define FLASH_BLOCK_SIZE			4096
-#define FLASH_MEMORY_SIZE			(16<<20)
+unsigned int db_GetInfoAddressLength();
 
-#define FSMID_CONFIG_ADDRESS		0
-#define FSMID_DATA_ADDRESS			(64<<10)
-
-#define MAXIMUM_MEASURE_POINT		(16*4)
-#define MAXIMUM_POWER_POINT			(4*4)
-
-extern int write_flash(unsigned int address, const void* data, unsigned int length);
-extern int read_flash(unsigned int address, void* data, unsigned int length);
-extern int erase_flash(unsigned int address, unsigned int length);
-
-// typedef unsigned int FSMID_LOG_HANDLE;
-// #define FSMID_INVALID_LOG_HANDLER	((FSMID_LOG_HANDLE)0xFFFFFFFF)
+const char *db_GetTerminalID();
 
 #ifndef __cplusplus
 };

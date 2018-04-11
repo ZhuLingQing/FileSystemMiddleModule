@@ -11,12 +11,13 @@ extern "C" {
 
 #pragma pack(push,1)
 
-// typedef struct __log_ulog{
-// 	SYS_TIME64 time;
-// 	unsigned char type;
-// 	unsigned char sts;
-// 	char buf[64];
-// }LOG_ULOG;
+typedef SOEEVENT LOG_RAWSOE;
+
+typedef struct __log_raw_trd{
+	SYS_TIME64 time;
+	TRDEVENT   trd;
+}LOG_RAWTRD;
+
 typedef ULOGEVENT LOG_ULOG;
 
 typedef struct __log_soe_co{

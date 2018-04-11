@@ -1,8 +1,7 @@
 #include "dbmsV1.h"
 #include "dpa10x.h"
 #include <string.h>
-#include "fsmid_port.h"
-#include "fsmid_point.h"
+#include "fs_middle.h"
 
 static FSMID_POINT* tableMeasure = NULL;
 static unsigned int numMeasure;
@@ -105,12 +104,12 @@ void FSMID_InitConfig()
 	}
 
 	pConfig = fsmid_malloc(FSMID_CONFIG,1 + max(numMeasure,numFrozen)/2 + 1);
-	read_flash(FSMID_CONFIG_ADDRESS,pConfig,sizeof(FSMID_CONFIG) + numMeasure*4);
+	FSLOG_GetRegistedInterface()->read(FSMID_CONFIG_ADDRESS,pConfig,sizeof(FSMID_CONFIG) + numMeasure*4);
 	if(pConfig->signature != MEASURE_CONFIG_SIG || pConfig->number != numMeasure || memcmp(pConfig->point,tableMeasure,numMeasure*sizeof(int)))
 	{
 		bChanged = 1;
 	}
-	read_flash(FSMID_CONFIG_ADDRESS+FLASH_BLOCK_SIZE,pConfig,sizeof(FSMID_CONFIG) + numFrozen*4);
+	FSLOG_GetRegistedInterface()->read(FSMID_CONFIG_ADDRESS+FLASH_BLOCK_SIZE,pConfig,sizeof(FSMID_CONFIG) + numFrozen*4);
 	if(pConfig->signature != FROZEN_CONFIG_SIG || pConfig->number != numFrozen || memcmp(pConfig->point,tableFrozen,numFrozen*sizeof(int)))
 	{
 		bChanged = 1;
@@ -118,17 +117,17 @@ void FSMID_InitConfig()
 
 	if(bChanged)
 	{
-		erase_flash(FSMID_CONFIG_ADDRESS,FLASH_MEMORY_SIZE);
+		FSLOG_GetRegistedInterface()->erase(FSMID_CONFIG_ADDRESS,FLASH_MEMORY_SIZE);
 
 		pConfig->signature = MEASURE_CONFIG_SIG;
 		pConfig->number = numMeasure;
 		memcpy(pConfig->point,tableMeasure,numMeasure*sizeof(int));
-		write_flash(FSMID_CONFIG_ADDRESS,pConfig,sizeof(FSMID_CONFIG) + numMeasure*4);
+		FSLOG_GetRegistedInterface()->write(FSMID_CONFIG_ADDRESS,pConfig,sizeof(FSMID_CONFIG) + numMeasure*4);
 
 		pConfig->signature = FROZEN_CONFIG_SIG;
 		pConfig->number = numFrozen;
 		memcpy(pConfig->point,tableFrozen,numFrozen*sizeof(int));
-		write_flash(FSMID_CONFIG_ADDRESS+FLASH_BLOCK_SIZE,pConfig,sizeof(FSMID_CONFIG) + numFrozen*4);
+		FSLOG_GetRegistedInterface()->write(FSMID_CONFIG_ADDRESS+FLASH_BLOCK_SIZE,pConfig,sizeof(FSMID_CONFIG) + numFrozen*4);
 	}
 
 	fsmid_free(pConfig);
@@ -176,6 +175,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMaximum[index].time,t64,sizeof(SYS_TIME64));
 			tableMaximum[index].value = fValue;
+			//fsmid_info("MAX[%2d] = %7.3f\n",index,fValue);
 		}
 	}
 	else if(tableMaximum[index].value >= 0 && fValue < 0)
@@ -184,6 +184,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMaximum[index].time,t64,sizeof(SYS_TIME64));
 			tableMaximum[index].value = fValue;
+			//fsmid_info("MAX[%2d] = %7.3f\n",index,fValue);
 		}
 	}
 	else if(tableMaximum[index].value < 0 && fValue >= 0)
@@ -192,6 +193,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMaximum[index].time,t64,sizeof(SYS_TIME64));
 			tableMaximum[index].value = fValue;
+			//fsmid_info("MAX[%2d] = %7.3f\n",index,fValue);
 		}
 	}
 	else if(tableMaximum[index].value < 0 && fValue < 0)
@@ -200,6 +202,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMaximum[index].time,t64,sizeof(SYS_TIME64));
 			tableMaximum[index].value = fValue;
+			//fsmid_info("MAX[%2d] = %7.3f\n",index,fValue);
 		}
 	}
 
@@ -209,6 +212,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMinimum[index].time,t64,sizeof(SYS_TIME64));
 			tableMinimum[index].value = fValue;
+			//fsmid_info("MIN[%2d] = %7.3f\n",index,fValue);
 		}
 	}
 	else if(tableMinimum[index].value >= 0 && fValue < 0)
@@ -217,6 +221,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMinimum[index].time,t64,sizeof(SYS_TIME64));
 			tableMinimum[index].value = fValue;
+			//fsmid_info("MIN[%2d] = %7.3f\n",index,fValue);
 		}
 	}
 	else if(tableMinimum[index].value < 0 && fValue >= 0)
@@ -225,6 +230,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMinimum[index].time,t64,sizeof(SYS_TIME64));
 			tableMinimum[index].value = fValue;
+			//fsmid_info("MIN[%2d] = %7.3f\n",index,fValue);
 		}
 	}
 	else if(tableMinimum[index].value < 0 && fValue < 0)
@@ -233,6 +239,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMinimum[index].time,t64,sizeof(SYS_TIME64));
 			tableMinimum[index].value = fValue;
+			//fsmid_info("MIN[%2d] = %7.3f\n",index,fValue);
 		}
 	}
 }

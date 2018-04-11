@@ -184,7 +184,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\test_tdu_enviroment.cpp"
+				RelativePath=".\test_dtu_enviroment.cpp"
 				>
 			</File>
 		</Filter>
@@ -231,6 +231,10 @@
 				Name="inc"
 				>
 				<File
+					RelativePath=".\fs_middle\inc\fs_middle.h"
+					>
+				</File>
+				<File
 					RelativePath=".\fs_middle\inc\fsmid_config.h"
 					>
 				</File>
@@ -247,6 +251,18 @@
 					>
 				</File>
 				<File
+					RelativePath=".\fs_middle\inc\fsmid_port.h"
+					>
+				</File>
+				<File
+					RelativePath=".\fs_middle\inc\fsmid_util.h"
+					>
+				</File>
+				<File
+					RelativePath=".\fs_middle\inc\fsmid_var.h"
+					>
+				</File>
+				<File
 					RelativePath=".\fs_middle\inc\list_linux.h"
 					>
 				</File>
@@ -259,10 +275,6 @@
 					>
 				</File>
 				<File
-					RelativePath=".\fs_middle\src\fsmid_config.cpp"
-					>
-				</File>
-				<File
 					RelativePath=".\fs_middle\src\fsmid_log.cpp"
 					>
 				</File>
@@ -271,11 +283,19 @@
 					>
 				</File>
 				<File
-					RelativePath=".\fs_middle\inc\fsmid_port.h"
+					RelativePath=".\fs_middle\src\fsmid_util.cpp"
 					>
 				</File>
 				<File
-					RelativePath=".\fs_middle\src\fsmid_util.cpp"
+					RelativePath=".\fs_middle\src\fsmid_var.cpp"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="dtu"
+				>
+				<File
+					RelativePath=".\fs_middle\module\ModuleSimulator.cpp"
 					>
 				</File>
 			</Filter>

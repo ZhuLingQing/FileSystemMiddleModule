@@ -1,4 +1,6 @@
-#include "..\inc\fsmid_def.h"
+#include "fsmid_def.h"
+#include "fsmid_port.h"
+#include "fsmid_config.h"
 #include <string.h>
 
 //static const unsigned char ctbl_counter[8] = {0xFF,0x7F,0x3F,0x1F,0x0F,0x07,0x03,0x01};
@@ -47,23 +49,9 @@ void number2bitmap(unsigned int number, unsigned char* bitmap, unsigned int leng
 
 bool systimeSameDay(const SYS_TIME64 *tm1, const SYS_TIME64 *tm2)
 {
-#ifdef FAST_MODE
-	if(tm1->day != tm2->day)
-		return false;
-	if(tm1->hour != tm2->hour)
-		return false;
-	if(tm1->min != tm2->min)
-		return false;
-	return true;
-#else
-	if(tm1->year != tm2->year)
-		return false;
-	if(tm1->mon != tm2->mon)
-		return false;
-	if(tm1->day != tm2->day)
-		return false;
-	return true;
-#endif
+	if(SYSTM64_SAMEDAY(tm1,tm2))
+		return true;
+	return false;
 }
 
 #include <time.h>

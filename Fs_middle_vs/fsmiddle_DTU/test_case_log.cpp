@@ -1,10 +1,9 @@
 
-#include "fsmid_port.h"
-#include "fsmid_log.h"
 #include <windows.h>
 #include <conio.h>
 #include <ctype.h>
 #include <stdio.h>
+#include "fs_middle.h"
 
 #define TEST_UNIT_NUMBER		128//1024
 #define TEST_UNIT_SIZE			128//16

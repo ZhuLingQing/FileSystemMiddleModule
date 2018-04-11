@@ -25,11 +25,6 @@ extern "C" {
 #pragma pack(push,1)
 
 
-typedef struct __fslog_interface{
-	int (*write)(unsigned int address, const void* data, unsigned int length);
-	int (*read)(unsigned int address, void* data, unsigned int length);
-	int (*erase)(unsigned int address, unsigned int length);
-}FSLOG_INTERFACE;
 
 
 typedef struct __fslog_function{
@@ -79,6 +74,8 @@ typedef struct __fslog{
 }FSLOG;
 
 void FSLOG_Init( const FSLOG_INTERFACE *pInterface);
+
+const FSLOG_INTERFACE *FSLOG_GetRegistedInterface();
 
 // int FSLOG_Rename(FSLOG *pLog, const char *pName);
 

@@ -1,9 +1,5 @@
 
-#include "fsmid_def.h"
-#include "fsmid_port.h"
-#include "fsmid_point.h"
-#include "fsmid_config.h"
-#include "fsmid_log.h"
+#include "fs_middle.h"
 
 #include "dbmsV1.h"
 #include "dpa10x.h"
@@ -16,20 +12,13 @@
 #define FSLOG_INFO_MSG(fmt,...)
 #endif  //#if defined(_FSLOG_INFO_MSG_)
 
-#ifdef FAST_MODE
-#define FIFTEEN_MINUTE_CONDITION(tm64)		(!(tm64.sec%5))
-#define DAILY_CONDITION(tm64)				(!((tm64.hour*60+tm64.min)%2) && !tm64.sec)
-#else
-#define FIFTEEN_MINUTE_CONDITION(tm64)		(!(tm64.min%15) && !tm64.sec)
-#define DAILY_CONDITION(tm64)				(!tm64.hour && !tm64.min)
-#endif
-
 static uint8 handleDpa;
 static uint8 handleDca;
 static uint8 handleWho;
 
 //*no for 101
 FSLOG *logRawSoe;
+FSLOG *logRawTrd;
 FSLOG *logPrintLog;
 
 //*1
@@ -41,15 +30,6 @@ FSLOG *logCo;
 #define TEMP_FIXPT_NAME		"TEMP\\FIXPT"
 #define TEMP_FRZ_NAME		"TEMP\\FRZ"
 
-#ifdef FAST_MODE
-#define NUMBER_OF_EXV		5
-#define NUMBER_OF_FIXPT		5
-#define NUMBER_OF_FRZ		5
-#else
-#define NUMBER_OF_EXV		30
-#define NUMBER_OF_FIXPT		31
-#define NUMBER_OF_FRZ		31
-#endif
 
 FSLOG *logExtremeTable[NUMBER_OF_EXV];
 unsigned int nExtreme;
@@ -64,7 +44,6 @@ unsigned int nFrozen;
 FSLOG **logFrozen = NULL;
 
 
-#define DYNAMIC_START_BLOCK		88
 
 void FSMID_FormatLogName(FSLOG *pLog, const char* nameLowCase, const SYS_TIME64 *tm64)
 {
@@ -78,11 +57,7 @@ void FSMID_FormatLogName(FSLOG *pLog, const char* nameLowCase, const SYS_TIME64 
 	}
 	nameUpCase[i] = 0;
 	FSLOG_INFO_MSG("[FSRENAME] from:\"%s\" to ",pLog->name);
-#ifdef FAST_MODE
-	sprintf(pLog->name,"HISTORY\\%s\\%s%02d%02d00.msg",nameUpCase,nameLowCase,tm64->hour,tm64->min);
-#else
-	sprintf(pLog->name,"HISTORY\\%s\\%s20%02d%02d%02d.msg",nameUpCase,nameLowCase,tm64->year,tm64->mon,tm64->day);
-#endif
+	FORMAT_NAME(pLog,nameUpCase,nameLowCase,tm64);
 	FSLOG_INFO_MSG("%s\".\n",pLog->name);
 }
 
@@ -92,19 +67,34 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 	FSLOG_INFORMATION *pInfo;
 	FSLOG **ppLog;
 	SYS_TIME64 sysTime;
-
+#if (defined(ENABLE_MODULE_SOE) || defined(ENABLE_MODULE_ALL))
 	logRawSoe   = FSLOG_Open("SYSTEM\\RAW_SOE",		NULL,			&infoRawSoe,	FSLOG_ATTR_OPEN_EXIST);
 	fsmid_assert(logRawSoe,__FILE__,__LINE__);
+#endif
+#if (defined(ENABLE_MODULE_CO) || defined(ENABLE_MODULE_ALL))
+	logRawTrd   = FSLOG_Open("SYSTEM\\RAW_TRD",		NULL,			&infoRawTrd,	FSLOG_ATTR_OPEN_EXIST);
+	fsmid_assert(logRawTrd,__FILE__,__LINE__);
+#endif
+#if (defined(ENABLE_MODULE_LOG) || defined(ENABLE_MODULE_ALL))
 	logPrintLog = FSLOG_Open("SYSTEM\\PRINTLOG",	NULL,			&infoPrintLog,	FSLOG_ATTR_OPEN_EXIST);
 	fsmid_assert(logPrintLog,__FILE__,__LINE__);
+#endif
 
+#if (defined(ENABLE_MODULE_LOG) || defined(ENABLE_MODULE_ALL))
 	logUlog		= FSLOG_Open("HISTORY\\ULOG\\ulog.msg",		&funcLogUlog,	&infoLogUlog,	FSLOG_ATTR_OPEN_EXIST);
 	fsmid_assert(logUlog,__FILE__,__LINE__);
+#endif
+
+#if (defined(ENABLE_MODULE_SOE) || defined(ENABLE_MODULE_ALL))
 	logSoe		= FSLOG_Open("HISTORY\\SOE\\soe.msg",		&funcLogSoe,	&infoLogSoe,	FSLOG_ATTR_OPEN_EXIST);
 	fsmid_assert(logSoe,__FILE__,__LINE__);
+#endif
+#if (defined(ENABLE_MODULE_CO) || defined(ENABLE_MODULE_ALL))
 	logCo		= FSLOG_Open("HISTORY\\CO\\co.msg",			&funcLogCo,		&infoLogCo,		FSLOG_ATTR_OPEN_EXIST);
 	fsmid_assert(logCo,__FILE__,__LINE__);
+#endif
 
+#if (defined(ENABLE_MODULE_EXV) || defined(ENABLE_MODULE_ALL))
 	for(i = 0, nExtreme = 0, ppLog = logExtremeTable; i < NUMBER_OF_EXV; i++,ppLog++)
 	{
 		pInfo = fsmid_malloc(FSLOG_INFORMATION,1);
@@ -134,14 +124,19 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 				logExtreme = ppLog;
 		}
 	}
+#else
+	address += infoLogExtreme.blockNumber * infoLogExtreme.blockSize*NUMBER_OF_EXV;
+#endif
 
+#if (defined(ENABLE_MODULE_FIXPT) || defined(ENABLE_MODULE_ALL))
 	for(i = 0, nFixpt = 0, ppLog = logFixptTable; i < NUMBER_OF_FIXPT; i++,ppLog++)
 	{
 		pInfo = fsmid_malloc(FSLOG_INFORMATION,1);
 		memcpy(pInfo,&infoLogFixpt,sizeof(FSLOG_INFORMATION));
 		pInfo->baseAddress = address;
-		//pInfo->unitCount = 96;
 		pInfo->blockNumber = FSLOG_CalcBlockNumber(pInfo->unitSize,pInfo->blockSize,pInfo->unitCount,true);
+		pInfo->unitSize = sizeof(LOG_FIXPT) + sizeof(float)*GetMeasureCount();
+		//pInfo->unitCount = 96;
 		fsmid_assert(address + pInfo->blockNumber * pInfo->blockSize < FLASH_MEMORY_SIZE,__FILE__,__LINE__);
 		logFixptTable[i] = FSLOG_Open(TEMP_FIXPT_NAME,&funcLogFixpt,pInfo,FSLOG_ATTR_OPEN_EXIST|FSLOG_ATTR_OTP);
 		fsmid_assert(ppLog,__FILE__,__LINE__);
@@ -179,14 +174,19 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 				logFixpt = ppLog;
 		}
 	}
+#else
+	address += infoLogFixpt.blockNumber * infoLogFixpt.blockSize*NUMBER_OF_FIXPT;
+#endif
 
+#if (defined(ENABLE_MODULE_RROZEN) || defined(ENABLE_MODULE_ALL))
 	for(i = 0, nFrozen = 0, ppLog = logFrozenTable; i < NUMBER_OF_FRZ; i++,ppLog++)
 	{
 		pInfo = fsmid_malloc(FSLOG_INFORMATION,1);
 		memcpy(pInfo,&infoLogFrozen,sizeof(FSLOG_INFORMATION));
 		pInfo->baseAddress = address;
-		//pInfo->unitCount = 97;
 		pInfo->blockNumber = FSLOG_CalcBlockNumber(pInfo->unitSize,pInfo->blockSize,pInfo->unitCount,true);
+		pInfo->unitSize = sizeof(LOG_FROZRN) + sizeof(float)*GetFrozenCount();
+		//pInfo->unitCount = 97;
 		fsmid_assert(address + pInfo->blockNumber * pInfo->blockSize < FLASH_MEMORY_SIZE,__FILE__,__LINE__);
 		logFrozenTable[i] = FSLOG_Open(TEMP_FRZ_NAME,&funcLogFrozen,pInfo,FSLOG_ATTR_OPEN_EXIST|FSLOG_ATTR_OTP);
 		fsmid_assert(ppLog,__FILE__,__LINE__);
@@ -224,6 +224,9 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 				logFrozen = ppLog;
 		}
 	}
+#else
+	address += infoLogFrozen.blockNumber * infoLogFrozen.blockSize*NUMBER_OF_FRZ;
+#endif
 }
 
 // static void write_soe(SYS_TIME64 *pTime, unsigned int inf, unsigned char value)
@@ -237,6 +240,7 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 
 static void FSMID_SoeApp(const SYS_TIME64 *t64)
 {
+#if (defined(ENABLE_MODULE_SOE) || defined(ENABLE_MODULE_ALL))
 //	int i, j;
 	struDpa10xFrm *pfrm;
 	void *ppntcfg = NULL;
@@ -329,10 +333,12 @@ static void FSMID_SoeApp(const SYS_TIME64 *t64)
 
 	if(flag)
 		FSLOG_LockWrite(logSoe,&soe);
+#endif
 }
 
 static void FSMID_CoApp(const SYS_TIME64 *t64)
 {
+#if (defined(ENABLE_MODULE_CO) || defined(ENABLE_MODULE_ALL))
 	struDpa10xFrm *pfrm;
 	void *ppntcfg = NULL;
 
@@ -343,10 +349,15 @@ static void FSMID_CoApp(const SYS_TIME64 *t64)
 	int16 pnt,otherpnt;
 
 	LOG_CO co = {0};
+	LOG_RAWTRD trd;
 
 	pfrm = dpa101appl.pport->pfrm;//指向第1帧
 	while (pEvent = db_GetTrd(handleDca))
 	{
+		memcpy(&trd.time,t64,sizeof(trd.time));
+		memcpy(&trd.trd,pEvent,sizeof(trd.trd));
+		FSLOG_LockWrite(logRawTrd,&trd);
+
 		ppntcfg = dpa10x_SearchSyspntInFrms(dpa101appl.pport, pEvent->pnt, TypeidDo, &frm, &pnt, &otherpnt, &inf);//查找系统点对应的点配置等，并得到inf
 
 		memcpy(&co.time,t64,sizeof(co.time));
@@ -354,10 +365,12 @@ static void FSMID_CoApp(const SYS_TIME64 *t64)
 		co.value = pEvent->val;
 		FSLOG_LockWrite(logCo,&co);
 	}
+#endif
 }
 
 static void FSMID_LogApp(const SYS_TIME64 *t64)
 {
+#if (defined(ENABLE_MODULE_LOG) || defined(ENABLE_MODULE_ALL))
 	PRTLOGEVENT *prtEvent;
 	ULOGEVENT *ulogEvent;
 
@@ -366,10 +379,12 @@ static void FSMID_LogApp(const SYS_TIME64 *t64)
 
 	while(prtEvent = db_GetPrtLog(handleWho))
 		FSLOG_LockWrite(logPrintLog,prtEvent);
+#endif
 }
 
 static void FSMID_ExtremeApp(const SYS_TIME64 *t64)
 {
+#if (defined(ENABLE_MODULE_EXV) || defined(ENABLE_MODULE_ALL))
 	unsigned int i;
 	FSMID_POINT *point;
 
@@ -377,10 +392,12 @@ static void FSMID_ExtremeApp(const SYS_TIME64 *t64)
 	{
 		UpdateExtremeValue(t64, i, db_GetAi(handleDpa,point->point));
 	}
+#endif
 }
 
 static void FSMID_FixptApp(const SYS_TIME64 *t64)
 {
+#if (defined(ENABLE_MODULE_FIXPT) || defined(ENABLE_MODULE_ALL))
 	unsigned int i;
 	FSMID_POINT *point;
 	LOG_FIXPT *pFixpt = (LOG_FIXPT*)fsmid_malloc(unsigned char,sizeof(LOG_FIXPT) + GetMeasureCount()*sizeof(float));
@@ -393,13 +410,15 @@ static void FSMID_FixptApp(const SYS_TIME64 *t64)
 	}
 	FSLOG_LockWrite(*logFixpt,pFixpt);
 	fsmid_free(pFixpt);
+#endif
 }
 
 static void FSMID_FrozenApp(const SYS_TIME64 *t64)
 {
+#if (defined(ENABLE_MODULE_FROZEN) || defined(ENABLE_MODULE_ALL))
 	unsigned int i;
 	FSMID_POINT *point;
-	LOG_FIXPT *pFrozen = (LOG_FIXPT*)fsmid_malloc(unsigned char,sizeof(LOG_FIXPT) + GetMeasureCount()*sizeof(float));
+	LOG_FIXPT *pFrozen = (LOG_FIXPT*)fsmid_malloc(unsigned char,sizeof(LOG_FIXPT) + GetFrozenCount()*sizeof(float));
 
 	memcpy(&pFrozen->time,t64,sizeof(pFrozen->time));
 	pFrozen->numUnit = GetFrozenCount();
@@ -409,10 +428,12 @@ static void FSMID_FrozenApp(const SYS_TIME64 *t64)
 	}
 	FSLOG_LockWrite(*logFrozen,pFrozen);
 	fsmid_free(pFrozen);
+#endif
 }
 
 static void FSMID_SaveExtremeLog(const SYS_TIME64 *tm64)
 {
+#if (defined(ENABLE_MODULE_EXV) || defined(ENABLE_MODULE_ALL))
 	int i;
 	LOG_EXTREME exv = {0};
 	LOG_EXTREME *pExtreme = GetMaximumTable();
@@ -454,16 +475,18 @@ static void FSMID_SaveExtremeLog(const SYS_TIME64 *tm64)
 	FSLOG_Unlock(*logExtreme);
 	fsmid_assert((*logExtreme)->unitNumber == 3+GetMeasureCount()*2,__FILE__,__LINE__);
 
+	ResetExtremeTable();
 	logExtreme ++;
 	if(nExtreme < NUMBER_OF_EXV)
 		nExtreme++;
 	if(logExtreme >= logExtremeTable + NUMBER_OF_EXV)
 		logExtreme = logExtremeTable;
-
+#endif
 }
 
 static void FSMID_SaveFixptLog(const SYS_TIME64 *tm64)
 {
+#if (defined(ENABLE_MODULE_FIXPT) || defined(ENABLE_MODULE_ALL))
 	logFixpt ++;
 	if(nFixpt < NUMBER_OF_FIXPT)
 		nFixpt++;
@@ -477,11 +500,12 @@ static void FSMID_SaveFixptLog(const SYS_TIME64 *tm64)
 		FSLOG_Clear(*logFixpt);
 	(*logFixpt)->timeCreateUnix = time_sys2unix(tm64);
 	FSMID_FormatLogName(*logFixpt,"fixpt",tm64);
-	ResetExtremeTable();
+#endif
 }
 
 static void FSMID_SaveFrozenLog(const SYS_TIME64 *tm64)
 {
+#if (defined(ENABLE_MODULE_FROZEN) || defined(ENABLE_MODULE_ALL))
 
 	//save current day's first point as daily frozen.
 //	LOG_FROZRN frozen;
@@ -504,6 +528,7 @@ static void FSMID_SaveFrozenLog(const SYS_TIME64 *tm64)
 		FSLOG_Clear(*logFrozen);
 	(*logFrozen)->timeCreateUnix = time_sys2unix(tm64);
 	FSMID_FormatLogName(*logFrozen,"frz",tm64);
+#endif
 }
 
 static void one_sec_delay(SYS_TIME64 *tm64)
@@ -515,8 +540,14 @@ static void one_sec_delay(SYS_TIME64 *tm64)
 	}while(_tm64.sec == tm64->sec);
 }
 
-void FSMID_Task(void*)
+#ifdef WIN32
+DWORD WINAPI FSMID_Task(void*)
+#else
+DWORD FSMID_Task(void*)
+#endif
 {
+
+	extern FSLOG_INTERFACE intrFslog;
 	SYS_TIME64 tm64;
 
 	glb_GetDateTime(&tm64);
@@ -552,4 +583,5 @@ void FSMID_Task(void*)
 		FSMID_LogApp(&tm64);//ULOG and PrintLog
 		FSMID_ExtremeApp(&tm64);//EXV
 	}
+	return 0;
 }

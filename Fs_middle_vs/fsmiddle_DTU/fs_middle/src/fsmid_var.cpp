@@ -1,29 +1,31 @@
 
 #include "dbmsV1.h"
+#include "fs_middle.h"
+static int format_info_addr_len(char *buf,unsigned int infoAddr)
+{
+	char fmt_format[] = "%02X";
+	fmt_format[2] = db_GetInfoAddressLength() + '0';
+	int len = sprintf(buf,fmt_format,infoAddr);
+	return len;
+}
 
-#include "fsmid_def.h"
-//#include "fsmid_type.h"
-#include "fsmid_log.h"
-#include "fsmid_point.h"
-
-#ifdef FAST_MODE
-#define FIXPT_POINT_PER_LOG		24
-#define FROZEN_POINT_PER_LOG	25
-#else
-#define FIXPT_POINT_PER_LOG		96
-#define FROZEN_POINT_PER_LOG	97
-#endif
-
-extern unsigned int db_GetInfoAddrLen();
-extern const char *db_GetTerminalID();
-
-static int format_header_soe_co(char *buf, FSLOG* pLog)
+static int format_header_soe(char *buf, FSLOG* pLog)
 {
 	int len;
 	if(buf)
-		len = sprintf(buf,"%s,%s\r\n%-24s,%4d,%2d\r\n",FSLOG_GetName(pLog),FILE_VERSION,db_GetTerminalID(),FSLOG_GetUnitCount(pLog),db_GetInfoAddrLen());
+		len = sprintf(buf,"%s,%s\r\n%-24s,%4d,%2d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),FSLOG_GetUnitCount(pLog),db_GetInfoAddressLength());
 	else
-		len = strlen(FSLOG_GetName(pLog)) + 1 + strlen(FILE_VERSION) + 2 + 24 + 1 + 4 + 1 + 2 + 2;
+		len = strlen(FSLOG_GetName(pLog)) + 1 + strlen(LOG_FILE_VERSION) + 2 + 24 + 1 + 4 + 1 + 2 + 2;
+	return len;
+}
+
+static int format_header_co(char *buf, FSLOG* pLog)
+{
+	int len;
+	if(buf)
+		len = sprintf(buf,"%s,%s\r\n%-24s,%4d,%2d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),FSLOG_GetUnitCount(pLog)*2,db_GetInfoAddressLength());
+	else
+		len = strlen(FSLOG_GetName(pLog)) + 1 + strlen(LOG_FILE_VERSION) + 2 + 24 + 1 + 4 + 1 + 2 + 2;
 	return len;
 }
 
@@ -34,12 +36,12 @@ static int format_header_exv(char *buf, FSLOG* pLog)
 	if(buf)
 	{
 		time_unix2sys(pLog->timeCreateUnix,&tm64);
-		len = sprintf(buf,"%s,%s\r\n%-24s,%4d%02d%02d,%2d\r\n",FSLOG_GetName(pLog),FILE_VERSION,db_GetTerminalID(),
+		len = sprintf(buf,"%s,%s\r\n%-24s,20%02d%02d%02d,%2d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),
 		tm64.year,tm64.mon,tm64.day,
-		db_GetInfoAddrLen());
+		db_GetInfoAddressLength());
 	}
 	else
-		len = strlen(FSLOG_GetName(pLog)) + 1 + strlen(FILE_VERSION) + 2 + 24 + 1 + 8 + 1 + 2 + 2;
+		len = strlen(FSLOG_GetName(pLog)) + 1 + strlen(LOG_FILE_VERSION) + 2 + 24 + 1 + 8 + 1 + 2 + 2;
 	return len;
 }
 
@@ -50,12 +52,12 @@ static int format_header_fixpt_frz_flowrev(char *buf, FSLOG* pLog)
 	if(buf)
 	{
 		time_unix2sys(pLog->timeCreateUnix,&tm64);
-		len = sprintf(buf,"%s,%s\r\n%-24s,%4d%02d%02d,%2d,%2d\r\n",FSLOG_GetName(pLog),FILE_VERSION,db_GetTerminalID(),
+		len = sprintf(buf,"%s,%s\r\n%-24s,20%02d%02d%02d,%2d,%2d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),
 			tm64.year,tm64.mon,tm64.day,
-			FSLOG_GetUnitCount(pLog),db_GetInfoAddrLen());
+			FSLOG_GetUnitCount(pLog),db_GetInfoAddressLength());
 	}
 	else
-		len = strlen(FSLOG_GetName(pLog)) + 1 + strlen(FILE_VERSION) + 2 + 24 + 1 + 8 + 1 + 2 + 1 + 2 + 2;
+		len = strlen(FSLOG_GetName(pLog)) + 1 + strlen(LOG_FILE_VERSION) + 2 + 24 + 1 + 8 + 1 + 2 + 1 + 2 + 2;
 	return len;
 }
 
@@ -76,11 +78,12 @@ static int format_ulog(char *buf, const void* data)
 
 	if(buf)
 	{
-		len = sprintf(buf,"%2d,%4d-%02d-%02d %02d:%02d:%02d.%03d,%-128s,%d\r\n",
+		len = sprintf(buf,"%2d,20%02d-%02d-%02d %02d:%02d:%02d.%03d,%-128s,%d\r\n",
 			log->type,
 			log->time.year,log->time.mon,log->time.day,
 			log->time.hour,log->time.min,log->time.sec,
 			log->time.msec,
+			log->buf,
 			log->sts?1:0);
 	}
 	else
@@ -93,18 +96,20 @@ static int format_ulog(char *buf, const void* data)
 static int format_soe(char *buf, const void* data)
 {
 	int len;
+	char strInfoAddr[4];
 	const LOG_SOE *log = (const LOG_SOE *)data;
 
 	if(buf)
 	{
-		len = sprintf(buf,"%08X,%d,%4d-%02d-%02d %02d:%02d:%02d.%03d\r\n",
-			log->information,log->value%10,
+		format_info_addr_len(strInfoAddr,log->information);
+		len = sprintf(buf,"%s,%d,20%02d-%02d-%02d %02d:%02d:%02d.%03d\r\n",
+			strInfoAddr,log->value%10,
 			log->time.year,log->time.mon,log->time.day,
 			log->time.hour,log->time.min,log->time.sec,
 			log->time.msec);
 	}
 	else
-		len = 8 + 1 + 23 + 2;
+		len = db_GetInfoAddressLength() + 1 + 23 + 2;
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
 }
@@ -113,22 +118,24 @@ static int format_co(char *buf, const void* data)
 {
 	const char *cstrTrdOperate[] = {"分","合"};
 	int len;
+	char strInfoAddr[4];
 	const LOG_CO *log = (const LOG_CO *)data;
 
 	if(buf)
 	{
-		len = sprintf(buf,"%08X,选择,%s,%4d-%02d-%02d %02d:%02d:%02d.%03d\r\n%08X,执行,%s,%4d-%02d-%02d %02d:%02d:%02d.%03d\r\n",
-			log->information,cstrTrdOperate[log->value?1:0],
+		format_info_addr_len(strInfoAddr,log->information);
+		len = sprintf(buf,"%s,选择,%s,20%02d-%02d-%02d %02d:%02d:%02d.%03d\r\n%s,执行,%s,20%02d-%02d-%02d %02d:%02d:%02d.%03d\r\n",
+			strInfoAddr,cstrTrdOperate[log->value?1:0],
 			log->time.year,log->time.mon,log->time.day,
 			log->time.hour,log->time.min,log->time.sec,
 			log->time.msec,
-			log->information,cstrTrdOperate[log->value?1:0],
+			strInfoAddr,cstrTrdOperate[log->value?1:0],
 			log->time.year,log->time.mon,log->time.day,
 			log->time.hour,log->time.min,log->time.sec,
 			log->time.msec);
 	}
 	else
-		len = (8 + 1 + 4 + 2 + 23 + 2)*2;
+		len = (db_GetInfoAddressLength() + 1 + 4 + 2 + 23 + 2)*2;
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
 }
@@ -136,6 +143,7 @@ static int format_co(char *buf, const void* data)
 static int format_extreme(char *buf, const void* data)
 {
 	int len;
+	char strInfoAddr[4];
 	FSMID_POINT * const measure = GetMeasureTable();
 	const LOG_EXTREME *log = (const LOG_EXTREME *)data;
 
@@ -163,13 +171,16 @@ static int format_extreme(char *buf, const void* data)
 	else
 	{
 		if(buf)
-			len = sprintf(buf,",%08X,%7.3f,%4d-%02d-%02d %02d:%02d:%02d.%03d",
-				measure[log->pointIndex].information,log->value,
+		{
+			format_info_addr_len(strInfoAddr,measure[log->pointIndex].information);
+			len = sprintf(buf,",%s,%7.3f,20%02d-%02d-%02d %02d:%02d:%02d.%03d",
+				strInfoAddr,log->value,
 				log->time.year,log->time.mon,log->time.day,
 				log->time.hour,log->time.min,log->time.sec,
 				log->time.msec);
+		}
 		else
-			len = 1 + 8 + 1 + 8 + 1 +23;
+			len = 1 + db_GetInfoAddressLength() + 1 + 8 + 1 +23;
 	}
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
@@ -178,23 +189,27 @@ static int format_extreme(char *buf, const void* data)
 static int format_fix(char *buf, const void* data)
 {
 	unsigned int i,len;
+	char strInfoAddr[4];
 	FSMID_POINT * const measure = GetMeasureTable();
 	const LOG_FIXPT *log = (const LOG_FIXPT *)data;
 	
 	if(buf)
 	{
-		len = sprintf(buf,"%2d,%4d-%02d-%02d %02d:%02d:%02d.%03d",
+		len = sprintf(buf,"%2d,20%02d-%02d-%02d %02d:%02d:%02d.%03d",
 			GetMeasureCount(),
 			log->time.year,log->time.mon,log->time.day,
 			log->time.hour,log->time.min,log->time.sec,
 			log->time.msec);
 
 		for( i = 0; i < GetMeasureCount(); i++ )
-			len += sprintf(buf + len,",%08X,%7.3f",measure->information, log->value[i] );
+		{
+			format_info_addr_len(strInfoAddr,measure[i].information);
+			len += sprintf(buf + len,",%s,%7.3f",strInfoAddr, log->value[i] );
+		}
 		len += sprintf(buf + len,"\r\n");
 	}
 	else
-		len = 2 + 1 + 23 + (1 + 8 + 1 + 8)*GetMeasureCount() + 2;
+		len = 2 + 1 + 23 + (1 + db_GetInfoAddressLength() + 1 + 8)*GetMeasureCount() + 2;
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
 }
@@ -202,23 +217,27 @@ static int format_fix(char *buf, const void* data)
 static int format_frozen(char *buf, const void* data)
 {
 	unsigned int i,len;
+	char strInfoAddr[4];
 	FSMID_POINT * const frozen = GetFrozenTable();
 	const LOG_FIXPT *log = (const LOG_FIXPT *)data;
 
 	if(buf)
 	{
-		len = sprintf(buf,"%2d,%4d-%02d-%02d %02d:%02d:%02d.%03d",
+		len = sprintf(buf,"%2d,20%02d-%02d-%02d %02d:%02d:%02d.%03d",
 			GetFrozenCount(),
 			log->time.year,log->time.mon,log->time.day,
 			log->time.hour,log->time.min,log->time.sec,
 			log->time.msec);
 
 		for( i = 0; i < GetFrozenCount(); i++ )
-			len += sprintf(buf + len,",%08X,%7.3f",frozen->information, log->value[i] );
+		{
+			format_info_addr_len(strInfoAddr,frozen[i].information);
+			len += sprintf(buf + len,",%s,%7.3f",strInfoAddr, log->value[i] );
+		}
 		len += sprintf(buf + len,"\r\n");
 	}
 	else
-		len = 2 + 1 + 23 + (1 + 8 + 1 + 8)*GetMeasureCount() + 2;
+		len = 2 + 1 + 23 + (1 + db_GetInfoAddressLength() + 1 + 8)*GetFrozenCount() + 2;
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
 }
@@ -227,13 +246,6 @@ static const SYS_TIME64 *get_log_time(const void* data)
 {
 	return ((const SYS_TIME64 *)data);
 }
-
-
-FSLOG_INTERFACE intrFslog = {
-	write_flash,
-	read_flash,
-	erase_flash,
-};
 
 FSLOG_FUNCTION funcLogUlog = {
 // 	write_flash,
@@ -248,7 +260,7 @@ FSLOG_FUNCTION funcLogSoe = {
 // 	write_flash,
 // 	read_flash,
 // 	erase_flash,
-	format_header_soe_co,
+	format_header_soe,
 	format_soe,
 	get_log_time,
 };
@@ -257,7 +269,7 @@ FSLOG_FUNCTION funcLogCo = {
 // 	write_flash,
 // 	read_flash,
 	// 	erase_flash,
-	format_header_soe_co,
+	format_header_co,
 	format_co,
 	get_log_time,
 };
@@ -305,23 +317,20 @@ unsigned int FSLOG_CalcBlockNumber(unsigned int unitSize, unsigned int blockSize
 	return res;
 }
 
-//blockNumber = unitCount/((blockSize-64)/unitSize) + 1
-#define START_BLOCK_RAWSOE			16
-#define START_BLOCK_PRINTLOG		36
-
-#define START_BLOCK_ULOG			64
-#define START_BLOCK_LOG_SOE			72
-#define START_BLOCK_LOG_CO			80
-#define START_BLOCK_LOG_EXTREME		88
-// #define START_BLOCK_LOG_FIX			104
-// #define START_BLOCK_LOG_FROZEN		104
-
 FSLOG_INFORMATION infoRawSoe = {
 	FLASH_BLOCK_SIZE * START_BLOCK_RAWSOE,
 	17,
 	FLASH_BLOCK_SIZE,
-	sizeof(SOEEVENT),
+	sizeof(LOG_RAWSOE),
 	1024,
+};
+
+FSLOG_INFORMATION infoRawTrd = {
+	FLASH_BLOCK_SIZE * START_BLOCK_RAWTRD,
+	2,
+	FLASH_BLOCK_SIZE,
+	sizeof(LOG_RAWTRD),
+	336,
 };
 
 FSLOG_INFORMATION infoPrintLog = {
@@ -358,7 +367,7 @@ FSLOG_INFORMATION infoLogCo= {
 
 
 FSLOG_INFORMATION infoLogExtreme = {
-	FLASH_BLOCK_SIZE * START_BLOCK_LOG_EXTREME,
+	0,//FLASH_BLOCK_SIZE * START_BLOCK_LOG_EXTREME,
 	0,
 	FLASH_BLOCK_SIZE,
 	sizeof(LOG_EXTREME),

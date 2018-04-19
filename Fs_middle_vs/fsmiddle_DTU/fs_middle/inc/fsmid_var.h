@@ -9,7 +9,7 @@ extern "C" {
 
 	extern FSLOG_INTERFACE intrFslog;
 
-	//extern FSLOG_FUNCTION funcRawData;//for raw soe and print log
+	extern FSLOG_FUNCTION funcFwUpdate;
 
 	extern FSLOG_FUNCTION funcLogUlog;
 
@@ -26,6 +26,7 @@ extern "C" {
 	unsigned int FSLOG_CalcBlockNumber(unsigned int unitSize, unsigned int blockSize, unsigned int unitCount,bool bOtp);
 
 
+	extern FSLOG_INFORMATION infoFwUpdate;
 	extern FSLOG_INFORMATION infoRawSoe;
 	extern FSLOG_INFORMATION infoRawTrd;
 	extern FSLOG_INFORMATION infoPrintLog;

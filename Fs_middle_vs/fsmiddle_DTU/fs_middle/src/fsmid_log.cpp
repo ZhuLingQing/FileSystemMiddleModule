@@ -242,38 +242,52 @@ FSLOG* FSLOG_Open( const char* pName, const FSLOG_FUNCTION * pFunction, const FS
 	pLog->attribute = attribute;
 
 	pLog->formatedSize = 0;
-	pLog->unitPerBlock = (pInformation->blockSize - sizeof(FSLOG_HEADER))/pInformation->unitSize;
-	pLog->unitPerBlock = min(FSLOG_UNIT_PERBLOCK,pLog->unitPerBlock);
+	if(attribute & FSLOG_ATTR_DATA_ONLY)
+		pLog->unitPerBlock = (pInformation->blockSize)/pInformation->unitSize;
+	else
+	{
+		pLog->unitPerBlock = (pInformation->blockSize - sizeof(FSLOG_HEADER))/pInformation->unitSize;
+		pLog->unitPerBlock = min(FSLOG_UNIT_PERBLOCK,pLog->unitPerBlock);
+	}
 	pLog->maxUnitCount = pInformation->blockNumber * pLog->unitPerBlock;
 	if(pInformation->unitCount)
 		fsmid_assert(pLog->maxUnitCount >= (pInformation->unitCount + ((attribute&FSLOG_ATTR_OTP)?0:pLog->unitPerBlock)),__FILE__,__LINE__);
 	pLog->unitNumber = 0;
 	pLog->pointerId = 0;
-	pLog->indexFirst = -1;
-	pLog->indexLast = -1;
-	//init all pointers with flash data
-	__fslog_init(pLog);
 
-	if(pLog->unitNumber && pFunction &&pFunction->time)
+	if(attribute & FSLOG_ATTR_DATA_ONLY)
 	{
-		data = fsmid_malloc(unsigned char,pInformation->unitSize);
-		fsmid_assert(data,__FILE__,__LINE__);
-		FSLOG_ReadData(pLog,0,data);
-		tm64 = pFunction->time(data);
-		pLog->timeCreateUnix = time_sys2unix(tm64);
-
-		pLog->formatedSize += pFunction->format_header(NULL,pLog);
-		for( i = 0; i < pLog->unitNumber; i++ )
-		{
-			FSLOG_ReadData(pLog,i,data);
-			pLog->formatedSize += pFunction->format_data(NULL,data);
-		}
-
-		fsmid_free(data);
-		FSLOG_INFO_MSG("[FSOPEN] \"%s\". Create:%02d-%02d-%02d. Placed: 0x%08X, ID:%d, %d unit.\n",pLog->name,tm64->year,tm64->mon,tm64->day,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
+		pLog->indexFirst = 0;
+		pLog->indexLast = 0;
 	}
 	else
-		FSLOG_INFO_MSG("[FSOPEN] \"%s\". Placed: 0x%08X, ID:%d, %d unit.\n",pLog->name,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
+	{
+	//init all pointers with flash data
+		pLog->indexFirst = -1;
+		pLog->indexLast = -1;
+		__fslog_init(pLog);
+
+		if(pLog->unitNumber && pFunction &&pFunction->time)
+		{
+			data = fsmid_malloc(unsigned char,pInformation->unitSize);
+			fsmid_assert(data,__FILE__,__LINE__);
+			FSLOG_ReadData(pLog,0,data);
+			tm64 = pFunction->time(data);
+			pLog->timeCreateUnix = time_sys2unix(tm64);
+
+			pLog->formatedSize += pFunction->format_header(NULL,pLog);
+			for( i = 0; i < pLog->unitNumber; i++ )
+			{
+				FSLOG_ReadData(pLog,i,data);
+				pLog->formatedSize += pFunction->format_data(NULL,data);
+			}
+
+			fsmid_free(data);
+			FSLOG_INFO_MSG("[FSOPEN] \"%s\". Create:%02d-%02d-%02d. Placed: 0x%08X, ID:%d, %d unit.\n",pLog->name,tm64->year,tm64->mon,tm64->day,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
+		}
+		else
+			FSLOG_INFO_MSG("[FSOPEN] \"%s\". Placed: 0x%08X, ID:%d, %d unit.\n",pLog->name,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
+	}
 	list_add_tail(&pLog->_node,&headMainLog);
 	return pLog;
 }
@@ -281,6 +295,9 @@ FSLOG* FSLOG_Open( const char* pName, const FSLOG_FUNCTION * pFunction, const FS
 int FSLOG_Write(FSLOG *pLog, const void* data)
 {
 	unsigned int address;
+
+	if(pLog->attribute & FSLOG_ATTR_DATA_ONLY)
+		return FSMIDR_BAD_ARGUMENT;
 
 	if((pLog->attribute & FSLOG_ATTR_OTP) && (pLog->unitNumber >= pLog->pInformation->unitCount))
 		return FSMIDR_LENGTH_LARGE;
@@ -316,6 +333,22 @@ int FSLOG_Write(FSLOG *pLog, const void* data)
 	return 0;
 }
 
+int FSLOG_WriteBinary(FSLOG *pLog, const void *data, unsigned int length)
+{
+	unsigned int address = pLog->pInformation->baseAddress + pLog->indexLast;
+
+	if(!(pLog->attribute & FSLOG_ATTR_DATA_ONLY))
+		return FSMIDR_BAD_ARGUMENT;
+	fsmid_mutex_lock(pLog->mutex);
+
+	log_write(address,data,length);
+	pLog->unitNumber += length;
+	pLog->indexLast += length;
+
+	fsmid_mutex_unlock(pLog->mutex);
+	return 0;
+}
+
 int FSLOG_LockWrite(FSLOG *pLog, const void* data)
 {
 	int result;
@@ -328,6 +361,9 @@ int FSLOG_LockWrite(FSLOG *pLog, const void* data)
 int FSLOG_ReadData(FSLOG *pLog, unsigned int index, void* data)
 {
 	unsigned int address;
+
+	if(pLog->attribute & FSLOG_ATTR_DATA_ONLY)
+		return FSMIDR_BAD_ARGUMENT;
 
 	//check read pointer is same as write pointer
 	if(index >= pLog->unitNumber)
@@ -408,17 +444,23 @@ int FSLOG_Clear(FSLOG *pLog)
 	unsigned int i;
 
 	fsmid_mutex_lock(pLog->mutex);
-	for( i = 0; i <pLog->pInformation->blockNumber; i++ )
+
+	if(pLog->attribute & FSLOG_ATTR_DATA_ONLY)
+		log_erase(pLog->pInformation->baseAddress,pLog->unitNumber);
+	else
 	{
-// 		address = pLog->pInformation->blockSize * i + pLog->pInformation->baseAddress;
-// 		fsmid_assert(!log_erase(address),__FILE__,__LINE__);
-		__fslog_init_block(pLog,i,(i==0)?FSLOG_BIT_FILLING:FSLOG_FLAG_ALL);
+		for( i = 0; i <pLog->pInformation->blockNumber; i++ )
+		{
+			__fslog_init_block(pLog,i,(i==0)?FSLOG_BIT_FILLING:FSLOG_FLAG_ALL);
+		}
 	}
 	pLog->pointerId = 0;
 	pLog->unitNumber = 0;
 	pLog->indexFirst = 0;
 	pLog->indexLast = 0;
+	pLog->formatedSize = 0;
 	FSLOG_INFO_MSG("[FSCLEAR] \"%s\". Placed: 0x%08X.\n",pLog->name,pLog->pInformation->baseAddress);
+
 	fsmid_mutex_unlock(pLog->mutex);
 	return 0;
 }
@@ -496,7 +538,7 @@ void FSLOG_ReleaseFilter()
 	nFiltedLog = 0;
 }
 
-unsigned int FSLOG_Filter(const char *pCondition)
+unsigned int FSLOG_Filter(const char *pCondition, unsigned int *timeUnixPair)
 {
 	list_head *container;
 	FSLOG *iterator;
@@ -510,12 +552,16 @@ unsigned int FSLOG_Filter(const char *pCondition)
 		if(__is_filted_name(iterator->name,pCondition))
 		if(iterator->unitNumber)
 		{
-			//fsmid_info("%-40s filted. UNIT:%4d. SIZE:%6d.\n",iterator->name,iterator->unitNumber,iterator->formatedSize);
-			headFiltedLog[nFiltedLog] = iterator;
-			nFiltedLog++;
-// 			list_del(&iterator->_node);
-// 			list_add_tail(&iterator->_node,&headFiltedLog);
-//			goto Looper;
+			if(!timeUnixPair)
+			{
+				headFiltedLog[nFiltedLog] = iterator;
+				nFiltedLog++;
+			}
+			else if(iterator->timeCreateUnix >= timeUnixPair[0] && iterator->timeCreateUnix <= timeUnixPair[1])
+			{
+				headFiltedLog[nFiltedLog] = iterator;
+				nFiltedLog++;
+			}
 		}
 	}
 	headFiltedLog[nFiltedLog] = NULL;
@@ -544,4 +590,23 @@ FSLOG *FSLOG_GetFiltedItem(unsigned int index)
 	if(index >= nFiltedLog)
 		return NULL;
 	return headFiltedLog[index];
+}
+
+FSLOG *FSLOG_Search( const char *pname)
+{
+	list_head *container;
+	FSLOG *iterator;
+	const char *fname;
+
+	if(nFiltedLog)
+		FSLOG_ReleaseFilter();
+	//Looper:
+	list_for_each(container,&headMainLog)
+	{
+		iterator = list_entry(container,FSLOG,_node);
+		fname = FSLOG_GetName(iterator);
+		if(strcmp(fname,pname) == 0)
+			return iterator;
+	}
+	return NULL;
 }

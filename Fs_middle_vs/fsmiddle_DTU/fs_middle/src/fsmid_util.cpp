@@ -138,3 +138,11 @@ void time_unix2sys(unsigned int unix, SYS_TIME64 *systime)
 	systime->sec = unix % 60;
 	systime->msec = 0;
 }
+
+unsigned char byteChecksum(unsigned char seed, unsigned char *buf, unsigned int length)
+{
+	unsigned char res = seed;
+	while(length--)
+		res = *buf++;
+	return res;
+}

@@ -41,11 +41,11 @@ static int format_header_exv(char *buf, FSLOG* pLog)
 		db_GetInfoAddressLength());
 	}
 	else
-		len = strlen(FSLOG_GetName(pLog)) + 1 + strlen(LOG_FILE_VERSION) + 2 + 24 + 1 + 8 + 1 + 2 + 2;
+		len = 15 + 1 + strlen(LOG_FILE_VERSION) + 2 + 24 + 1 + 8 + 1 + 2 + 2;
 	return len;
 }
 
-static int format_header_fixpt_frz_flowrev(char *buf, FSLOG* pLog)
+static int format_header_fixpt(char *buf, FSLOG* pLog)
 {
 	int len;
 	SYS_TIME64 tm64;
@@ -57,7 +57,23 @@ static int format_header_fixpt_frz_flowrev(char *buf, FSLOG* pLog)
 			FSLOG_GetUnitCount(pLog),db_GetInfoAddressLength());
 	}
 	else
-		len = strlen(FSLOG_GetName(pLog)) + 1 + strlen(LOG_FILE_VERSION) + 2 + 24 + 1 + 8 + 1 + 2 + 1 + 2 + 2;
+		len = 17 + 1 + strlen(LOG_FILE_VERSION) + 2 + 24 + 1 + 8 + 1 + 2 + 1 + 2 + 2;
+	return len;
+}
+
+static int format_header_frz(char *buf, FSLOG* pLog)
+{
+	int len;
+	SYS_TIME64 tm64;
+	if(buf)
+	{
+		time_unix2sys(pLog->timeCreateUnix,&tm64);
+		len = sprintf(buf,"%s,%s\r\n%-24s,20%02d%02d%02d,%2d,%2d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),
+			tm64.year,tm64.mon,tm64.day,
+			FSLOG_GetUnitCount(pLog),db_GetInfoAddressLength());
+	}
+	else
+		len = 15 + 1 + strlen(LOG_FILE_VERSION) + 2 + 24 + 1 + 8 + 1 + 2 + 1 + 2 + 2;
 	return len;
 }
 
@@ -180,7 +196,7 @@ static int format_extreme(char *buf, const void* data)
 				log->time.msec);
 		}
 		else
-			len = 1 + db_GetInfoAddressLength() + 1 + 8 + 1 +23;
+			len = 1 + db_GetInfoAddressLength() + 1 + 7 + 1 +23;
 	}
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
@@ -209,7 +225,7 @@ static int format_fix(char *buf, const void* data)
 		len += sprintf(buf + len,"\r\n");
 	}
 	else
-		len = 2 + 1 + 23 + (1 + db_GetInfoAddressLength() + 1 + 8)*GetMeasureCount() + 2;
+		len = 2 + 1 + 23 + (1 + db_GetInfoAddressLength() + 1 + 7)*GetMeasureCount() + 2;
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
 }
@@ -237,7 +253,7 @@ static int format_frozen(char *buf, const void* data)
 		len += sprintf(buf + len,"\r\n");
 	}
 	else
-		len = 2 + 1 + 23 + (1 + db_GetInfoAddressLength() + 1 + 8)*GetFrozenCount() + 2;
+		len = 2 + 1 + 23 + (1 + db_GetInfoAddressLength() + 1 + 7)*GetFrozenCount() + 2;
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
 }
@@ -287,7 +303,7 @@ FSLOG_FUNCTION funcLogFixpt = {
 // 	write_flash,
 // 	read_flash,
 	// 	erase_flash,
-	format_header_fixpt_frz_flowrev,
+	format_header_fixpt,
 	format_fix,
 	get_log_time,
 };
@@ -296,7 +312,7 @@ FSLOG_FUNCTION funcLogFrozen = {
 // 	write_flash,
 // 	read_flash,
 	// 	erase_flash,
-	format_header_fixpt_frz_flowrev,
+	format_header_frz,
 	format_frozen,
 	get_log_time,
 };
@@ -317,52 +333,60 @@ unsigned int FSLOG_CalcBlockNumber(unsigned int unitSize, unsigned int blockSize
 	return res;
 }
 
+FSLOG_INFORMATION infoFwUpdate = {
+	FLASH_BLOCK_SIZE * START_BLOCK_FIRMWARE,
+	NUM_BLOCK_FIRMWARE,
+	FLASH_BLOCK_SIZE,
+	1,
+	NUM_BLOCK_FIRMWARE * FLASH_BLOCK_SIZE,
+};
+
 FSLOG_INFORMATION infoRawSoe = {
 	FLASH_BLOCK_SIZE * START_BLOCK_RAWSOE,
-	17,
+	NUM_BLOCK_RAWSOE,
 	FLASH_BLOCK_SIZE,
 	sizeof(LOG_RAWSOE),
-	1024,
+	NUM_POINT_RAWSOE,
 };
 
 FSLOG_INFORMATION infoRawTrd = {
 	FLASH_BLOCK_SIZE * START_BLOCK_RAWTRD,
-	2,
+	NUM_BLOCK_TRD,
 	FLASH_BLOCK_SIZE,
 	sizeof(LOG_RAWTRD),
-	336,
+	NUM_POINT_TRD,
 };
 
 FSLOG_INFORMATION infoPrintLog = {
 	FLASH_BLOCK_SIZE * START_BLOCK_PRINTLOG,
-	22,
+	NUM_BLOCK_PRTLOG,
 	FLASH_BLOCK_SIZE,
 	sizeof(PRTLOGEVENT),
-	1024,
+	NUM_POINT_PRTLOG,
 };
 
 FSLOG_INFORMATION infoLogUlog = {
 	FLASH_BLOCK_SIZE * START_BLOCK_ULOG,
-	20,
+	NUM_BLOCK_ULOG,
 	FLASH_BLOCK_SIZE,
 	sizeof(LOG_ULOG),
-	1024,
+	NUM_POINT_ULOG,
 };
 
 FSLOG_INFORMATION infoLogSoe = {
 	FLASH_BLOCK_SIZE * START_BLOCK_LOG_SOE,
-	6,
+	NUM_BLOCK_LOG_SOE,
 	FLASH_BLOCK_SIZE,
 	sizeof(LOG_SOE),
-	1024,
+	NUM_POINT_LOG_SOE,
 };
 
 FSLOG_INFORMATION infoLogCo= {
 	FLASH_BLOCK_SIZE * START_BLOCK_LOG_CO,
-	6,
+	NUM_BLOCK_LOG_CO,
 	FLASH_BLOCK_SIZE,
 	sizeof(LOG_CO),
-	1024,
+	NUM_POINT_LOG_CO,
 };
 
 

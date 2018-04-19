@@ -15,6 +15,8 @@ bool unixSameDay(unsigned int tm1, unsigned int tm2);
 extern unsigned int time_sys2unix(const SYS_TIME64* systime);
 extern void time_unix2sys(unsigned int unix, SYS_TIME64 *systime);
 
+unsigned char byteChecksum(unsigned char seed, unsigned char *buf, unsigned int length);
+
 #ifndef __cplusplus
 };
 #endif

@@ -257,14 +257,6 @@ DWORD WINAPI signal_generator(LPVOID lpParameter)
 	int tickSoe,tickTrd,tickUlog,tickPrtlog;
 	SYS_TIME64 tm64;
 	char sbuf[MAX_PATH];
-	//FILE *fsoe,*ftrd,*fprtlog,*fulog,*fmea,*ffrz;
-
-// 	fsoe = f_test_open((char *)lpParameter,"\\raw\\SOE.csv");
-// 	ftrd = f_test_open((char *)lpParameter,"\\raw\\TRD.csv");
-// 	fprtlog = f_test_open((char *)lpParameter,"\\raw\\PRTLOG.csv");
-// 	fulog = f_test_open((char *)lpParameter,"\\raw\\ULOG.csv");
-// 	fmea = f_test_open((char *)lpParameter,"\\raw\\FIXPT.csv");
-// 	ffrz = f_test_open((char *)lpParameter,"\\raw\\FRZ.csv");
 
 	tickSoe = i_gen_rand(59) + 1;
 	tickTrd = i_gen_rand(59) + 1;
@@ -456,40 +448,30 @@ bool init_dtu_enviroment(char *pPath)
 	return true;
 }
 
-DWORD WINAPI threadConsole(LPVOID lpParameter)
+void get_filted_string( char *cmd, bool bUpcase)
 {
-	extern DWORD WINAPI FSMID_Task(void*);
+	int i;
+	for(i = 0; i < MAX_PATH-1;i ++)
+	{
+		cmd[i] = _getch();
+		_putch(cmd[i]);
+		if(cmd[i] == 0xD || cmd[i] == 0x1B)
+		{
+			printf("\r\n");
+			cmd[i] = 0;
+			break;
+		}
+		else if(bUpcase && cmd[i] >= 'a' && cmd[i] <='z')
+			cmd[i] = cmd[i] - 'a' + 'A';
+	}
+}
+
+DWORD WINAPI threadDebugCmdLine(LPVOID lpParameter)
+{ 
 	int code;
 	char cmd[MAX_PATH];
-	DWORD wLen;
 	unsigned int i,nItem = 0;
 	FSLOG *pLog;
-	char strPipeName[] = "\\\\.\\pipe\\dtuPipe";
-	const char pipConnecting[] = "Pipe connecting...\n";
-
-	init_dtu_enviroment((char*)lpParameter);
-	srand((unsigned int)time(NULL));
-
-// 	sprintf(cmd,"%s\\fsmiddle_console.exe",(char*)lpParameter);
-// 	WinExec(cmd,SW_SHOW);
-// 	Sleep(100);
-	printf("Waif for connecting Pipe...\n"); 
-	if(WaitNamedPipe(strPipeName,NMPWAIT_WAIT_FOREVER))
-	{
-		hDtuPipe = CreateFile(strPipeName,GENERIC_READ|GENERIC_WRITE,0,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
-		if(INVALID_HANDLE_VALUE == hDtuPipe)
-		{
-			printf("Fail to Create pipe. Err:%d.\n",GetLastError());
-			return 0;
-		}
-		WriteFile(hDtuPipe,pipConnecting,strlen(pipConnecting),&wLen,NULL);
-	}
-	else
-		printf("No pipe.\n");
-
-
-	HANDLE t1 = CreateThread(NULL, 0, signal_generator, lpParameter, 0, NULL);  
-	HANDLE t2 = CreateThread(NULL, 0, FSMID_Task, NULL, 0, NULL);  
 	while(1)
 	{
 		printf("input command code:");
@@ -503,20 +485,8 @@ DWORD WINAPI threadConsole(LPVOID lpParameter)
 		case 'L':
 			ZeroMemory(cmd,MAX_PATH);
 			printf("Please input filter string:");
-			for(i = 0; i < MAX_PATH-1;i ++)
-			{
-				cmd[i] = _getch();
-				_putch(cmd[i]);
-				if(cmd[i] == 0xD || cmd[i] == 0x1B)
-				{
-					printf("\r\n");
-					cmd[i] = 0;
-					break;
-				}
-				else if(cmd[i] >= 'a' && cmd[i] <='z')
-					cmd[i] = cmd[i] - 'a' + 'A';
-			}
-			nItem = FSLOG_Filter(cmd);
+			get_filted_string(cmd,true);
+			nItem = FSLOG_Filter(cmd,NULL);
 			printf("\n%d files selected.\n",nItem);
 			break;
 		case 'd':
@@ -525,8 +495,8 @@ DWORD WINAPI threadConsole(LPVOID lpParameter)
 			for(i = 0; i < nItem; i++)
 			{
 				printLog(FSLOG_GetFiltedItem(i));
-// 				if(i != nItem - 1) 
-// 					_getch();
+				// 				if(i != nItem - 1) 
+				// 					_getch();
 			}
 			printf("All item listed.\n");
 			break;
@@ -554,4 +524,41 @@ DWORD WINAPI threadConsole(LPVOID lpParameter)
 	}
 	exit(1);
 	return 0;
+}
+
+DWORD WINAPI threadConsole(LPVOID lpParameter)
+{
+	extern DWORD WINAPI FSMID_Task(void*);
+	extern DWORD WINAPI threadProtocol(void*);
+	char strPipeName[] = "\\\\.\\pipe\\dtuPipe";
+	const char pipConnecting[] = "Pipe connecting...\n";
+	DWORD wLen;
+
+	init_dtu_enviroment((char*)lpParameter);
+	srand((unsigned int)time(NULL));
+
+// 	sprintf(cmd,"%s\\fsmiddle_console.exe",(char*)lpParameter);
+// 	WinExec(cmd,SW_SHOW);
+// 	Sleep(100);
+	printf("Waif for connecting Pipe...\n"); 
+	if(WaitNamedPipe(strPipeName,NMPWAIT_WAIT_FOREVER))
+	{
+		hDtuPipe = CreateFile(strPipeName,GENERIC_READ|GENERIC_WRITE,0,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+		if(INVALID_HANDLE_VALUE == hDtuPipe)
+		{
+			printf("Fail to Create pipe. Err:%d.\n",GetLastError());
+			return 0;
+		}
+		WriteFile(hDtuPipe,pipConnecting,strlen(pipConnecting),&wLen,NULL);
+	}
+	else
+		printf("No pipe.\n");
+
+#ifndef FILE_NO_UPDATE
+	HANDLE t1 = CreateThread(NULL, 0, signal_generator, lpParameter, 0, NULL);  
+#endif
+	HANDLE t2 = CreateThread(NULL, 0, FSMID_Task, lpParameter, 0, NULL);  
+ 	HANDLE t3 = CreateThread(NULL, 0, threadDebugCmdLine, lpParameter, 0, NULL); 
+	while(1)
+		Sleep(1000);
 }

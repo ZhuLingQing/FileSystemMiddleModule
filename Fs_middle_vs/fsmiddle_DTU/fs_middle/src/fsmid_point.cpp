@@ -22,6 +22,8 @@ typedef struct __st_fsmid_config{
 	FSMID_POINT point[0];
 }FSMID_CONFIG;
 
+#define START_ADDRESS_CONFIG		(START_BLOCK_CONFIG*FLASH_BLOCK_SIZE)
+
 void FSMID_InitConfig()
 {
 	int bChanged = 0;
@@ -104,12 +106,12 @@ void FSMID_InitConfig()
 	}
 
 	pConfig = fsmid_malloc(FSMID_CONFIG,1 + max(numMeasure,numFrozen)/2 + 1);
-	FSLOG_GetRegistedInterface()->read(FSMID_CONFIG_ADDRESS,pConfig,sizeof(FSMID_CONFIG) + numMeasure*4);
+	FSLOG_GetRegistedInterface()->read(START_ADDRESS_CONFIG,pConfig,sizeof(FSMID_CONFIG) + numMeasure*4);
 	if(pConfig->signature != MEASURE_CONFIG_SIG || pConfig->number != numMeasure || memcmp(pConfig->point,tableMeasure,numMeasure*sizeof(int)))
 	{
 		bChanged = 1;
 	}
-	FSLOG_GetRegistedInterface()->read(FSMID_CONFIG_ADDRESS+FLASH_BLOCK_SIZE,pConfig,sizeof(FSMID_CONFIG) + numFrozen*4);
+	FSLOG_GetRegistedInterface()->read(START_ADDRESS_CONFIG+FLASH_BLOCK_SIZE,pConfig,sizeof(FSMID_CONFIG) + numFrozen*4);
 	if(pConfig->signature != FROZEN_CONFIG_SIG || pConfig->number != numFrozen || memcmp(pConfig->point,tableFrozen,numFrozen*sizeof(int)))
 	{
 		bChanged = 1;
@@ -117,17 +119,17 @@ void FSMID_InitConfig()
 
 	if(bChanged)
 	{
-		FSLOG_GetRegistedInterface()->erase(FSMID_CONFIG_ADDRESS,FLASH_MEMORY_SIZE);
+		FSLOG_GetRegistedInterface()->erase(START_ADDRESS_CONFIG,FLASH_MEMORY_SIZE - START_ADDRESS_CONFIG);
 
 		pConfig->signature = MEASURE_CONFIG_SIG;
 		pConfig->number = numMeasure;
 		memcpy(pConfig->point,tableMeasure,numMeasure*sizeof(int));
-		FSLOG_GetRegistedInterface()->write(FSMID_CONFIG_ADDRESS,pConfig,sizeof(FSMID_CONFIG) + numMeasure*4);
+		FSLOG_GetRegistedInterface()->write(START_ADDRESS_CONFIG,pConfig,sizeof(FSMID_CONFIG) + numMeasure*4);
 
 		pConfig->signature = FROZEN_CONFIG_SIG;
 		pConfig->number = numFrozen;
 		memcpy(pConfig->point,tableFrozen,numFrozen*sizeof(int));
-		FSLOG_GetRegistedInterface()->write(FSMID_CONFIG_ADDRESS+FLASH_BLOCK_SIZE,pConfig,sizeof(FSMID_CONFIG) + numFrozen*4);
+		FSLOG_GetRegistedInterface()->write(START_ADDRESS_CONFIG+FLASH_BLOCK_SIZE,pConfig,sizeof(FSMID_CONFIG) + numFrozen*4);
 	}
 
 	fsmid_free(pConfig);

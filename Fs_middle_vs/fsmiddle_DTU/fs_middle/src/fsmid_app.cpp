@@ -16,6 +16,8 @@ static uint8 handleDpa;
 static uint8 handleDca;
 static uint8 handleWho;
 
+FSLOG *logFirmware;
+
 //*no for 101
 FSLOG *logRawSoe;
 FSLOG *logRawTrd;
@@ -26,9 +28,9 @@ FSLOG *logUlog;
 FSLOG *logSoe;
 FSLOG *logCo;
 
-#define TEMP_EXV_NAME		"TEMP\\EXV"
-#define TEMP_FIXPT_NAME		"TEMP\\FIXPT"
-#define TEMP_FRZ_NAME		"TEMP\\FRZ"
+#define TEMP_EXV_NAME		"TEMP\\EXVxxxxxxxx.msg"
+#define TEMP_FIXPT_NAME		"TEMP\\FIXPT.msg"
+#define TEMP_FRZ_NAME		"TEMP\\FRZ.msg"
 
 
 FSLOG *logExtremeTable[NUMBER_OF_EXV];
@@ -67,6 +69,9 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 	FSLOG_INFORMATION *pInfo;
 	FSLOG **ppLog;
 	SYS_TIME64 sysTime;
+
+	logFirmware = FSLOG_Open("SYSTEM\\FIRMWARE.BIN", NULL,			&infoFwUpdate, FSLOG_ATTR_OTP|FSLOG_ATTR_DATA_ONLY);
+
 #if (defined(ENABLE_MODULE_SOE) || defined(ENABLE_MODULE_ALL))
 	logRawSoe   = FSLOG_Open("SYSTEM\\RAW_SOE",		NULL,			&infoRawSoe,	FSLOG_ATTR_OPEN_EXIST);
 	fsmid_assert(logRawSoe,__FILE__,__LINE__);
@@ -566,6 +571,7 @@ DWORD FSMID_Task(void*)
 		one_sec_delay(&tm64);
 		glb_GetDateTime(&tm64);
 
+#ifndef FILE_NO_UPDATE
 		if(FIFTEEN_MINUTE_CONDITION(tm64))
 		{
 			FSLOG_INFO_MSG("[TIME] Tick:20%02d-%02d-%02d %02d:%02d:%02d %03d\n",tm64.year,tm64.mon,tm64.day,tm64.hour,tm64.min,tm64.sec,tm64.msec);
@@ -582,6 +588,8 @@ DWORD FSMID_Task(void*)
 		FSMID_CoApp(&tm64);//CO
 		FSMID_LogApp(&tm64);//ULOG and PrintLog
 		FSMID_ExtremeApp(&tm64);//EXV
+#endif
+
 	}
 	return 0;
 }

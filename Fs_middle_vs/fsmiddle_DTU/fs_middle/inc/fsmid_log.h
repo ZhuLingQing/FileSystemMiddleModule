@@ -9,7 +9,7 @@
 #define FSLOG_EVENT_FULL			0x02
 
 #define FSLOG_ATTR_OTP				(1<<31)
-#define FSLOG_ATTR_AVAILABLE		(1<<30)
+#define FSLOG_ATTR_DATA_ONLY		(1<<30)
 
 #define FSLOG_OPEN_MASK				(3<<26)
 #define FSLOG_ATTR_OPEN_EXIST		(1<<27)
@@ -61,11 +61,11 @@ typedef struct __fslog{
 	unsigned int attribute;
 
 	//read only after initialize
-	unsigned int formatedSize;
 	unsigned int unitPerBlock;
 	unsigned int maxUnitCount;
 
 	//dynamic whole life cycle
+	unsigned int formatedSize;
 	unsigned int pointerId;
 	unsigned int unitNumber;
 	unsigned int indexFirst;
@@ -82,6 +82,8 @@ const FSLOG_INTERFACE *FSLOG_GetRegistedInterface();
 //create initialize FSLOG object
 FSLOG* FSLOG_Open( const char* pName, const FSLOG_FUNCTION * pFunction, const FSLOG_INFORMATION *pInformation, unsigned int attribute);
 
+//write firmware code.
+int FSLOG_WriteBinary(FSLOG *pLog, const void *data, unsigned int length);
 //write one data unit into FSLOG object's tail.
 int FSLOG_Write(FSLOG *pLog, const void* log);
 int FSLOG_LockWrite(FSLOG *pLog, const void* log);
@@ -117,12 +119,13 @@ const char* FSLOG_GetName(FSLOG* pLog);
 
 void FSLOG_ReleaseFilter();
 
-unsigned int FSLOG_Filter(const char *pCondition);
+unsigned int FSLOG_Filter(const char *pCondition, unsigned int *timeUnixPair);
 
 unsigned int FSLOG_GetFiltedCount();
 
 FSLOG *FSLOG_GetFiltedItem(unsigned int index);
 
+FSLOG *FSLOG_Search( const char *pname);
 
 #pragma pack(pop)
 

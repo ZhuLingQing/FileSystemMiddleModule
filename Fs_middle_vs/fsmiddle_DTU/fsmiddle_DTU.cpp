@@ -12,6 +12,7 @@ extern void FSMID_Task(void*);
 char exeFullPath[MAX_PATH];
 
 extern DWORD WINAPI threadConsole(LPVOID lpParameter);
+extern DWORD WINAPI threadProtocol(LPVOID lpParameter);
 
 void getCurrentFolder(char path[])
 {
@@ -28,8 +29,11 @@ int _tmain(int argc, _TCHAR* argv[])
 	getCurrentFolder(exeFullPath);
 #if 0
 	test_log(exeFullPath);
-#else
+#elif 0
 	HANDLE t1 = CreateThread(NULL, 0, threadConsole, exeFullPath, 0, NULL); 
+	WaitForSingleObject(t1,INFINITE);
+#else
+	HANDLE t1 = CreateThread(NULL, 0, threadProtocol, exeFullPath, 0, NULL); 
 	WaitForSingleObject(t1,INFINITE);
 #endif
 	_getch();

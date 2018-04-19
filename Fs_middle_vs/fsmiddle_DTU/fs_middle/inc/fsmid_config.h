@@ -17,7 +17,7 @@
 #define FIFTEEN_MINUTE_CONDITION(tm64)		(!(tm64.sec%5))
 #define DAILY_CONDITION(tm64)				(!((tm64.hour*60+tm64.min)%2) && !tm64.sec)
 
-#define FORMAT_NAME(pLog,uc,lc,tm64)		sprintf((pLog)->name,"HISTORY\\%s\\%s%02d%02d00.msg",uc,lc,(tm64)->hour,(tm64)->min&0xFE)
+#define FORMAT_NAME(pLog,uc,lc,tm64)		sprintf((pLog)->name,"HISTORY\\%s\\%s__%02d%02d00.msg",uc,lc,(tm64)->hour,(tm64)->min&0xFE)
 
 #define SYSTM64_SAMEDAY(tm1,tm2)			((tm1->day == tm2->day) && (tm1->hour == tm2->hour) && ((tm1->min&0xFE) == (tm2->min&0xFE)))
 
@@ -42,20 +42,40 @@
 #define FLASH_BLOCK_SIZE			4096
 #define FLASH_MEMORY_SIZE			(16<<20)
 
-#define FSMID_CONFIG_ADDRESS		0
-#define FSMID_DATA_ADDRESS			(64<<10)
+#define START_BLOCK_FIRMWARE		0
+#define NUM_BLOCK_FIRMWARE			((512*1024)/FLASH_BLOCK_SIZE)
+
+#define START_BLOCK_CONFIG			(NUM_BLOCK_FIRMWARE)
+#define NUM_BLOCK_CONFIG			((64<<10)/FLASH_BLOCK_SIZE)
 
 #define MAXIMUM_MEASURE_POINT		(16*4)
 #define MAXIMUM_POWER_POINT			(4*4)
 
-#define START_BLOCK_RAWSOE			16
-#define START_BLOCK_RAWTRD			34
-#define START_BLOCK_PRINTLOG		36
+#define START_BLOCK_RAWSOE			(START_BLOCK_CONFIG + NUM_BLOCK_CONFIG)
+#define NUM_BLOCK_RAWSOE			18
+#define NUM_POINT_RAWSOE			1024
 
-#define START_BLOCK_ULOG			64
-#define START_BLOCK_LOG_SOE			72
-#define START_BLOCK_LOG_CO			80
-#define DYNAMIC_START_BLOCK			88
+#define START_BLOCK_RAWTRD			(START_BLOCK_RAWSOE + NUM_BLOCK_RAWSOE)
+#define NUM_BLOCK_TRD				2
+#define NUM_POINT_TRD				336
+
+#define START_BLOCK_PRINTLOG		(START_BLOCK_RAWTRD + NUM_BLOCK_TRD)
+#define NUM_BLOCK_PRTLOG			22
+#define NUM_POINT_PRTLOG			1024
+
+#define START_BLOCK_ULOG			(NUM_BLOCK_FIRMWARE + 64)
+#define NUM_BLOCK_ULOG				20
+#define NUM_POINT_ULOG				1024
+
+#define START_BLOCK_LOG_SOE			(START_BLOCK_ULOG + NUM_BLOCK_ULOG)
+#define NUM_BLOCK_LOG_SOE			6
+#define NUM_POINT_LOG_SOE			1024
+
+#define START_BLOCK_LOG_CO			(START_BLOCK_LOG_SOE + NUM_BLOCK_LOG_SOE)
+#define NUM_BLOCK_LOG_CO			6
+#define NUM_POINT_LOG_CO			1024
+
+#define DYNAMIC_START_BLOCK			(NUM_BLOCK_FIRMWARE + 128)
 
 #define ENABLE_MODULE_ALL
 // #define ENABLE_MODULE_LOG

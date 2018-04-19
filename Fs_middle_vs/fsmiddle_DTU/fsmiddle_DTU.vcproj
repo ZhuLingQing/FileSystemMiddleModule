@@ -42,7 +42,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;&quot;$(ProjectDir)fs_middle\inc\&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;VS_SIMULATE;FAST_MODE;"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;FILE_NO_UPDATE;VS_SIMULATE;FAST_MODE;"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -187,6 +187,10 @@
 				RelativePath=".\test_dtu_enviroment.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\test_protocol.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Í·ÎÄ¼þ"
@@ -294,6 +298,10 @@
 			<Filter
 				Name="dtu"
 				>
+				<File
+					RelativePath=".\fs_middle\module\FileMid.cpp"
+					>
+				</File>
 				<File
 					RelativePath=".\fs_middle\module\ModuleSimulator.cpp"
 					>

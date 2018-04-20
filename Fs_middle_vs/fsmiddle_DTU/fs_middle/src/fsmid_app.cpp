@@ -1,8 +1,17 @@
 
-#include "fs_middle.h"
+
+#ifdef CPU_MK64FN1M0VMD12
+#include "board.h"
+#include "fsl_common.h"
+#include "board.h"
+#include "SpiNorFlash.h"
+#include "fsl_debug_console.h"
+#endif
 
 #include "dbmsV1.h"
 #include "dpa10x.h"
+
+#include "fs_middle.h"
 
 #undef  _FSLOG_INFO_MSG_
 //#define _FSLOG_INFO_MSG_
@@ -28,9 +37,9 @@ FSLOG *logUlog;
 FSLOG *logSoe;
 FSLOG *logCo;
 
-#define TEMP_EXV_NAME		"TEMP\\EXVxxxxxxxx.msg"
-#define TEMP_FIXPT_NAME		"TEMP\\FIXPT.msg"
-#define TEMP_FRZ_NAME		"TEMP\\FRZ.msg"
+#define TEMP_EXV_NAME		"TEMP/EXVxxxxxxxx.msg"
+#define TEMP_FIXPT_NAME		"TEMP/FIXPT.msg"
+#define TEMP_FRZ_NAME		"TEMP/FRZ.msg"
 
 
 FSLOG *logExtremeTable[NUMBER_OF_EXV];
@@ -44,6 +53,31 @@ FSLOG **logFixpt = NULL;
 FSLOG *logFrozenTable[NUMBER_OF_FRZ];
 unsigned int nFrozen;
 FSLOG **logFrozen = NULL;
+#ifdef CPU_MK64FN1M0VMD12
+
+int write_flash(unsigned int address, const void* data, unsigned int length)
+{
+    if(SPINOR_Write(data_flash,address,data,length) != kStatus_Success) return -1;
+	return 0;
+}
+int read_flash(unsigned int address, void* data, unsigned int length)
+{
+    if(SPINOR_Read(data_flash,address,data,length) != kStatus_Success) return -1;
+	return 0;
+}
+int erase_flash(unsigned int address, unsigned int length)
+{
+    if(SPINOR_Erase(data_flash,address,length) != kStatus_Success) return -1;
+	return 0;
+}
+
+FSLOG_INTERFACE intrFslog = 
+{
+	write_flash,
+	read_flash,
+	erase_flash,
+};
+#endif
 
 
 
@@ -70,32 +104,32 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 	FSLOG **ppLog;
 	SYS_TIME64 sysTime;
 
-	logFirmware = FSLOG_Open("SYSTEM\\FIRMWARE.BIN", NULL,			&infoFwUpdate, FSLOG_ATTR_OTP|FSLOG_ATTR_DATA_ONLY);
+	logFirmware = FSLOG_Open("SYSTEM/FIRMWARE.BIN", NULL,			&infoFwUpdate, FSLOG_ATTR_OTP|FSLOG_ATTR_DATA_ONLY);
 
 #if (defined(ENABLE_MODULE_SOE) || defined(ENABLE_MODULE_ALL))
-	logRawSoe   = FSLOG_Open("SYSTEM\\RAW_SOE",		NULL,			&infoRawSoe,	FSLOG_ATTR_OPEN_EXIST);
+	logRawSoe   = FSLOG_Open("SYSTEM/RAW_SOE",		NULL,			&infoRawSoe,	FSLOG_ATTR_OPEN_EXIST);
 	fsmid_assert(logRawSoe,__FILE__,__LINE__);
 #endif
 #if (defined(ENABLE_MODULE_CO) || defined(ENABLE_MODULE_ALL))
-	logRawTrd   = FSLOG_Open("SYSTEM\\RAW_TRD",		NULL,			&infoRawTrd,	FSLOG_ATTR_OPEN_EXIST);
+	logRawTrd   = FSLOG_Open("SYSTEM/RAW_TRD",		NULL,			&infoRawTrd,	FSLOG_ATTR_OPEN_EXIST);
 	fsmid_assert(logRawTrd,__FILE__,__LINE__);
 #endif
 #if (defined(ENABLE_MODULE_LOG) || defined(ENABLE_MODULE_ALL))
-	logPrintLog = FSLOG_Open("SYSTEM\\PRINTLOG",	NULL,			&infoPrintLog,	FSLOG_ATTR_OPEN_EXIST);
+	logPrintLog = FSLOG_Open("SYSTEM/PRINTLOG",	NULL,			&infoPrintLog,	FSLOG_ATTR_OPEN_EXIST);
 	fsmid_assert(logPrintLog,__FILE__,__LINE__);
 #endif
 
 #if (defined(ENABLE_MODULE_LOG) || defined(ENABLE_MODULE_ALL))
-	logUlog		= FSLOG_Open("HISTORY\\ULOG\\ulog.msg",		&funcLogUlog,	&infoLogUlog,	FSLOG_ATTR_OPEN_EXIST);
+	logUlog		= FSLOG_Open("HISTORY/ULOG/ulog.msg",		&funcLogUlog,	&infoLogUlog,	FSLOG_ATTR_OPEN_EXIST);
 	fsmid_assert(logUlog,__FILE__,__LINE__);
 #endif
 
 #if (defined(ENABLE_MODULE_SOE) || defined(ENABLE_MODULE_ALL))
-	logSoe		= FSLOG_Open("HISTORY\\SOE\\soe.msg",		&funcLogSoe,	&infoLogSoe,	FSLOG_ATTR_OPEN_EXIST);
+	logSoe		= FSLOG_Open("HISTORY/SOE/soe.msg",		&funcLogSoe,	&infoLogSoe,	FSLOG_ATTR_OPEN_EXIST);
 	fsmid_assert(logSoe,__FILE__,__LINE__);
 #endif
 #if (defined(ENABLE_MODULE_CO) || defined(ENABLE_MODULE_ALL))
-	logCo		= FSLOG_Open("HISTORY\\CO\\co.msg",			&funcLogCo,		&infoLogCo,		FSLOG_ATTR_OPEN_EXIST);
+	logCo		= FSLOG_Open("HISTORY/CO/co.msg",			&funcLogCo,		&infoLogCo,		FSLOG_ATTR_OPEN_EXIST);
 	fsmid_assert(logCo,__FILE__,__LINE__);
 #endif
 
@@ -548,10 +582,9 @@ static void one_sec_delay(SYS_TIME64 *tm64)
 #ifdef WIN32
 DWORD WINAPI FSMID_Task(void*)
 #else
-DWORD FSMID_Task(void*)
+void FSMID_Task(void *pvParameters)
 #endif
 {
-
 	extern FSLOG_INTERFACE intrFslog;
 	SYS_TIME64 tm64;
 
@@ -572,6 +605,7 @@ DWORD FSMID_Task(void*)
 		glb_GetDateTime(&tm64);
 
 #ifndef FILE_NO_UPDATE
+	
 		if(FIFTEEN_MINUTE_CONDITION(tm64))
 		{
 			FSLOG_INFO_MSG("[TIME] Tick:20%02d-%02d-%02d %02d:%02d:%02d %03d\n",tm64.year,tm64.mon,tm64.day,tm64.hour,tm64.min,tm64.sec,tm64.msec);
@@ -591,5 +625,7 @@ DWORD FSMID_Task(void*)
 #endif
 
 	}
+	#ifdef WIN32
 	return 0;
+	#endif
 }

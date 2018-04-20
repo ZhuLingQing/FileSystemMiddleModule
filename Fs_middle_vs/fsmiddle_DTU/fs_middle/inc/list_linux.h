@@ -10,7 +10,7 @@
 //#include "from_linux.h"
 
 
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 extern "C" {
 #endif
 
@@ -614,7 +614,7 @@ static inline void list_splice_tail_init(struct list_head *list,
  * You lose the ability to access the tail in O(1).
  */
 
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 };
 #endif
 

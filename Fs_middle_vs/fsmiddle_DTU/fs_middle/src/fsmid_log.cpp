@@ -1,6 +1,8 @@
 
-#include "fs_middle.h"
 #include <string.h>
+#include "dbmsV1.h"
+#include "fs_middle.h"
+#include "fsl_debug_console.h"
 
 #undef  _FSLOG_INFO_MSG_
 //#define _FSLOG_INFO_MSG_
@@ -17,6 +19,10 @@ static const FSLOG_INTERFACE *logInterface = NULL;
 
 #pragma pack(push,1)
 
+#ifdef CPU_MK64FN1M0VMD12
+__no_init unsigned char	Memtmp_WriteLog[512] @"slow_data_section";
+__no_init unsigned char	Memtmp_ReadLog[512] @"slow_data_section";
+#endif
 //-----------------------------------internal structure definition----------------------------------------
 #define FSLOG_HEADER_SIZE		64
 
@@ -124,6 +130,19 @@ static int __fslog_init(FSLOG *pLog)
 			else
 				fsmid_assert(0,__FILE__,__LINE__);
 		}
+#if 1
+		else
+		{
+			__fslog_init_block(pLog,i,FSLOG_BIT_FILLING);
+			if(i)
+				fsmid_warning("!invalid signature",__FILE__,__LINE__);
+			pLog->unitNumber = i * pLog->unitPerBlock;
+			pLog->indexFirst = pLog->unitNumber;
+			pLog->indexLast = pLog->unitNumber;
+			pLog->pointerId = pLog->unitNumber;
+			return 0;
+		}
+#else
 		else if(header.signature == FSLOG_FFFF_SIGNATURE)
 		{
 			if(i)
@@ -136,9 +155,14 @@ static int __fslog_init(FSLOG *pLog)
 			return 0;
 		}
 		else
+		{
+			PRINTF("!FAIL(%s) at 0x%08X, sig: 0x%08X\n",pLog->name,address,header.signature);
 			fsmid_assert(0,__FILE__,__LINE__);
+		}
+#endif
 	}
 	fsmid_assert(0,__FILE__,__LINE__);
+    return 0;
 }
 
 //return to new block
@@ -174,7 +198,9 @@ static int __fslog_plus_write_counter(FSLOG* pLog)
 // 	sizeof(FSLOG_NODE),
 // 	0
 // };
-
+#ifdef CPU_MK64FN1M0VMD12
+QueueHandle_t fsmid_mutex;
+#endif
 void FSLOG_Init(const FSLOG_INTERFACE *pInterface)
 {
 	INIT_LIST_HEAD(&headMainLog);
@@ -182,6 +208,9 @@ void FSLOG_Init(const FSLOG_INTERFACE *pInterface)
 	headFiltedLog = fsmid_malloc(FSLOG*,32);
 	headFiltedLog[nFiltedLog] = NULL;
 	logInterface = pInterface;
+	#ifdef CPU_MK64FN1M0VMD12
+	vSemaphoreCreateBinary(fsmid_mutex); 
+	#endif
 }
 
 const FSLOG_INTERFACE *FSLOG_GetRegistedInterface()
@@ -274,14 +303,14 @@ FSLOG* FSLOG_Open( const char* pName, const FSLOG_FUNCTION * pFunction, const FS
 			FSLOG_ReadData(pLog,0,data);
 			tm64 = pFunction->time(data);
 			pLog->timeCreateUnix = time_sys2unix(tm64);
-
+			
 			pLog->formatedSize += pFunction->format_header(NULL,pLog);
 			for( i = 0; i < pLog->unitNumber; i++ )
 			{
 				FSLOG_ReadData(pLog,i,data);
 				pLog->formatedSize += pFunction->format_data(NULL,data);
 			}
-
+			
 			fsmid_free(data);
 			FSLOG_INFO_MSG("[FSOPEN] \"%s\". Create:%02d-%02d-%02d. Placed: 0x%08X, ID:%d, %d unit.\n",pLog->name,tm64->year,tm64->mon,tm64->day,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
 		}
@@ -295,7 +324,6 @@ FSLOG* FSLOG_Open( const char* pName, const FSLOG_FUNCTION * pFunction, const FS
 int FSLOG_Write(FSLOG *pLog, const void* data)
 {
 	unsigned int address;
-
 	if(pLog->attribute & FSLOG_ATTR_DATA_ONLY)
 		return FSMIDR_BAD_ARGUMENT;
 
@@ -349,6 +377,7 @@ int FSLOG_WriteBinary(FSLOG *pLog, const void *data, unsigned int length)
 	return 0;
 }
 
+
 int FSLOG_LockWrite(FSLOG *pLog, const void* data)
 {
 	int result;
@@ -361,7 +390,6 @@ int FSLOG_LockWrite(FSLOG *pLog, const void* data)
 int FSLOG_ReadData(FSLOG *pLog, unsigned int index, void* data)
 {
 	unsigned int address;
-
 	if(pLog->attribute & FSLOG_ATTR_DATA_ONLY)
 		return FSMIDR_BAD_ARGUMENT;
 
@@ -460,7 +488,7 @@ int FSLOG_Clear(FSLOG *pLog)
 	pLog->indexLast = 0;
 	pLog->formatedSize = 0;
 	FSLOG_INFO_MSG("[FSCLEAR] \"%s\". Placed: 0x%08X.\n",pLog->name,pLog->pInformation->baseAddress);
-
+	
 	fsmid_mutex_unlock(pLog->mutex);
 	return 0;
 }
@@ -490,7 +518,7 @@ const char* FSLOG_GetName(FSLOG* pLog)
 	
 	while(*pName)
 	{
-		if(*pName == '\\')
+		if(*pName == '/')
 			pFolderMark = pName;
 		pName++;
 	}
@@ -508,15 +536,15 @@ static bool __is_filted_name(const char *pFileName, const char *pFilterName)
 		return true;
 	if(memcmp(pFileName,pFilterName,l) == 0)
 	{
-		if(pFilterName[l-1] == '\\')
+		if(pFilterName[l-1] == '/')
 			pFileName += l;
-		else if( pFileName[l] == '\\' )
+		else if( pFileName[l] == '/' )
 			pFileName += l + 1;
 		else
 			return false;
 		while(*pFileName)
 		{
-			if(*pFileName == '\\')
+			if(*pFileName == '/')
 				return false;
 			pFileName++;
 		}
@@ -540,7 +568,7 @@ void FSLOG_ReleaseFilter()
 
 unsigned int FSLOG_Filter(const char *pCondition, unsigned int *timeUnixPair)
 {
-	list_head *container;
+	struct list_head *container;
 	FSLOG *iterator;
 
 	if(nFiltedLog)
@@ -562,6 +590,7 @@ unsigned int FSLOG_Filter(const char *pCondition, unsigned int *timeUnixPair)
 				headFiltedLog[nFiltedLog] = iterator;
 				nFiltedLog++;
 			}
+
 		}
 	}
 	headFiltedLog[nFiltedLog] = NULL;
@@ -594,7 +623,7 @@ FSLOG *FSLOG_GetFiltedItem(unsigned int index)
 
 FSLOG *FSLOG_Search( const char *pname)
 {
-	list_head *container;
+	struct list_head *container;
 	FSLOG *iterator;
 	const char *fname;
 

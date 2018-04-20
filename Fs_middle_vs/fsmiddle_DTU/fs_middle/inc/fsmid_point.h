@@ -5,12 +5,13 @@
 #include "sysTimerV1.h"
 #include "dbmsV1.h"
 
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 extern "C" {
 #endif
 
 #pragma pack(push,1)
 
+/**************************************************************************************************/
 typedef SOEEVENT LOG_RAWSOE;
 
 typedef struct __log_raw_trd{
@@ -43,10 +44,7 @@ typedef struct __log_fix_frozen{
 	unsigned int numUnit;
 	float value[0];
 }LOG_FIXPT,LOG_FROZRN;
-
-
-
-
+/*-----------------------------------------------------------------------------------------------*/
 typedef struct __struct_fsmid_point{
 	unsigned int information;
 	unsigned short point;
@@ -68,7 +66,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 FSMID_POINT * const GetFrozenTable();
 unsigned int GetFrozenCount();
 
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 };
 #endif
 

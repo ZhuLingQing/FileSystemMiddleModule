@@ -101,7 +101,11 @@ unsigned int time_sys2unix(const SYS_TIME64 *systime)
 	stm.tm_min=systime->min; 
 	stm.tm_sec=systime->sec; 
 
-	return (unsigned int)_mktime32(&stm);  
+    #ifdef CPU_MK64FN1M0VMD12
+    return 0;
+    #else
+    return (unsigned int)_mktime32(&stm);  
+    #endif
 }
 
 void time_unix2sys(unsigned int unix, SYS_TIME64 *systime)

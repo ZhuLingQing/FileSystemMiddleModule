@@ -3,7 +3,7 @@
 
 #include "fsmid_def.h"
 
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 extern "C" {
 #endif
 
@@ -17,8 +17,7 @@ extern void time_unix2sys(unsigned int unix, SYS_TIME64 *systime);
 
 unsigned char byteChecksum(unsigned char seed, unsigned char *buf, unsigned int length);
 
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 };
 #endif
-
 #endif

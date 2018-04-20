@@ -1,6 +1,9 @@
 
+#ifndef CPU_MK64FN1M0VMD12
 #include "dbmsV1.h"
+#endif
 #include "fs_middle.h"
+
 static int format_info_addr_len(char *buf,unsigned int infoAddr)
 {
 	char fmt_format[] = "%02X";
@@ -263,7 +266,7 @@ static const SYS_TIME64 *get_log_time(const void* data)
 	return ((const SYS_TIME64 *)data);
 }
 
-FSLOG_FUNCTION funcLogUlog = {
+const FSLOG_FUNCTION funcLogUlog = {
 // 	write_flash,
 // 	read_flash,
 // 	erase_flash,
@@ -272,7 +275,7 @@ FSLOG_FUNCTION funcLogUlog = {
 	get_log_time,
 };
 
-FSLOG_FUNCTION funcLogSoe = {
+const FSLOG_FUNCTION funcLogSoe = {
 // 	write_flash,
 // 	read_flash,
 // 	erase_flash,
@@ -281,7 +284,7 @@ FSLOG_FUNCTION funcLogSoe = {
 	get_log_time,
 };
 
-FSLOG_FUNCTION funcLogCo = {
+const FSLOG_FUNCTION funcLogCo = {
 // 	write_flash,
 // 	read_flash,
 	// 	erase_flash,
@@ -290,7 +293,7 @@ FSLOG_FUNCTION funcLogCo = {
 	get_log_time,
 };
 
-FSLOG_FUNCTION funcLogExtreme = {
+const FSLOG_FUNCTION funcLogExtreme = {
 // 	write_flash,
 // 	read_flash,
 	// 	erase_flash,
@@ -299,7 +302,7 @@ FSLOG_FUNCTION funcLogExtreme = {
 	get_log_time,
 };
 
-FSLOG_FUNCTION funcLogFixpt = {
+const FSLOG_FUNCTION funcLogFixpt = {
 // 	write_flash,
 // 	read_flash,
 	// 	erase_flash,
@@ -308,7 +311,7 @@ FSLOG_FUNCTION funcLogFixpt = {
 	get_log_time,
 };
 
-FSLOG_FUNCTION funcLogFrozen = {
+const FSLOG_FUNCTION funcLogFrozen = {
 // 	write_flash,
 // 	read_flash,
 	// 	erase_flash,
@@ -333,7 +336,7 @@ unsigned int FSLOG_CalcBlockNumber(unsigned int unitSize, unsigned int blockSize
 	return res;
 }
 
-FSLOG_INFORMATION infoFwUpdate = {
+const FSLOG_INFORMATION infoFwUpdate = {
 	FLASH_BLOCK_SIZE * START_BLOCK_FIRMWARE,
 	NUM_BLOCK_FIRMWARE,
 	FLASH_BLOCK_SIZE,
@@ -341,7 +344,7 @@ FSLOG_INFORMATION infoFwUpdate = {
 	NUM_BLOCK_FIRMWARE * FLASH_BLOCK_SIZE,
 };
 
-FSLOG_INFORMATION infoRawSoe = {
+const FSLOG_INFORMATION infoRawSoe = {
 	FLASH_BLOCK_SIZE * START_BLOCK_RAWSOE,
 	NUM_BLOCK_RAWSOE,
 	FLASH_BLOCK_SIZE,
@@ -349,7 +352,7 @@ FSLOG_INFORMATION infoRawSoe = {
 	NUM_POINT_RAWSOE,
 };
 
-FSLOG_INFORMATION infoRawTrd = {
+const FSLOG_INFORMATION infoRawTrd = {
 	FLASH_BLOCK_SIZE * START_BLOCK_RAWTRD,
 	NUM_BLOCK_TRD,
 	FLASH_BLOCK_SIZE,
@@ -357,7 +360,7 @@ FSLOG_INFORMATION infoRawTrd = {
 	NUM_POINT_TRD,
 };
 
-FSLOG_INFORMATION infoPrintLog = {
+const FSLOG_INFORMATION infoPrintLog = {
 	FLASH_BLOCK_SIZE * START_BLOCK_PRINTLOG,
 	NUM_BLOCK_PRTLOG,
 	FLASH_BLOCK_SIZE,
@@ -365,7 +368,7 @@ FSLOG_INFORMATION infoPrintLog = {
 	NUM_POINT_PRTLOG,
 };
 
-FSLOG_INFORMATION infoLogUlog = {
+const FSLOG_INFORMATION infoLogUlog = {
 	FLASH_BLOCK_SIZE * START_BLOCK_ULOG,
 	NUM_BLOCK_ULOG,
 	FLASH_BLOCK_SIZE,
@@ -373,7 +376,7 @@ FSLOG_INFORMATION infoLogUlog = {
 	NUM_POINT_ULOG,
 };
 
-FSLOG_INFORMATION infoLogSoe = {
+const FSLOG_INFORMATION infoLogSoe = {
 	FLASH_BLOCK_SIZE * START_BLOCK_LOG_SOE,
 	NUM_BLOCK_LOG_SOE,
 	FLASH_BLOCK_SIZE,
@@ -381,7 +384,7 @@ FSLOG_INFORMATION infoLogSoe = {
 	NUM_POINT_LOG_SOE,
 };
 
-FSLOG_INFORMATION infoLogCo= {
+const FSLOG_INFORMATION infoLogCo= {
 	FLASH_BLOCK_SIZE * START_BLOCK_LOG_CO,
 	NUM_BLOCK_LOG_CO,
 	FLASH_BLOCK_SIZE,
@@ -390,7 +393,7 @@ FSLOG_INFORMATION infoLogCo= {
 };
 
 
-FSLOG_INFORMATION infoLogExtreme = {
+const FSLOG_INFORMATION infoLogExtreme = {
 	0,//FLASH_BLOCK_SIZE * START_BLOCK_LOG_EXTREME,
 	0,
 	FLASH_BLOCK_SIZE,
@@ -399,7 +402,7 @@ FSLOG_INFORMATION infoLogExtreme = {
 };
 
 //dynamic!!!
-FSLOG_INFORMATION infoLogFixpt = {
+const FSLOG_INFORMATION infoLogFixpt = {
 	0,//FLASH_BLOCK_SIZE * START_BLOCK_LOG_FIX,
 	0,
 	FLASH_BLOCK_SIZE,
@@ -408,7 +411,7 @@ FSLOG_INFORMATION infoLogFixpt = {
 };
 
 //dynamic!!!
-FSLOG_INFORMATION infoLogFrozen = {
+const FSLOG_INFORMATION infoLogFrozen = {
 	0,//FLASH_BLOCK_SIZE * START_BLOCK_LOG_FROZEN,
 	0,
 	FLASH_BLOCK_SIZE,

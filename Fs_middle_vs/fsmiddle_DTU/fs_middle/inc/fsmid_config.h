@@ -5,6 +5,8 @@
 
 #define LOG_FILE_VERSION		"1.0"
 
+/**************************************************************************************************/
+
 #ifdef FAST_MODE
 
 #define NUMBER_OF_EXV			5
@@ -17,7 +19,7 @@
 #define FIFTEEN_MINUTE_CONDITION(tm64)		(!(tm64.sec%5))
 #define DAILY_CONDITION(tm64)				(!((tm64.hour*60+tm64.min)%2) && !tm64.sec)
 
-#define FORMAT_NAME(pLog,uc,lc,tm64)		sprintf((pLog)->name,"HISTORY\\%s\\%s__%02d%02d00.msg",uc,lc,(tm64)->hour,(tm64)->min&0xFE)
+#define FORMAT_NAME(pLog,uc,lc,tm64)			sprintf((pLog)->name,"HISTORY/%s/%s__%02d%02d00.msg",uc,lc,(tm64)->hour,(tm64)->min&0xFE)
 
 #define SYSTM64_SAMEDAY(tm1,tm2)			((tm1->day == tm2->day) && (tm1->hour == tm2->hour) && ((tm1->min&0xFE) == (tm2->min&0xFE)))
 
@@ -33,11 +35,12 @@
 #define FIFTEEN_MINUTE_CONDITION(tm64)		(!(tm64.min%15) && !tm64.sec)
 #define DAILY_CONDITION(tm64)				(!tm64.hour && !tm64.min)
 
-#define FORMAT_NAME(pLog,uc,lc,tm64)		sprintf((pLog)->name,"HISTORY\\%s\\%s20%02d%02d%02d.msg",uc,lc,(tm64)->year,(tm64)->mon,(tm64)->day)
+#define FORMAT_NAME(pLog,uc,lc,tm64)		sprintf((pLog)->name,"HISTORY/%s/%s20%02d%02d%02d.msg",uc,lc,(tm64)->year,(tm64)->mon,(tm64)->day)
 
 #define SYSTM64_SAMEDAY(tm1,tm2)			((tm1->year == tm2->year) && (tm1->mon == tm2->mon) && (tm1->day == tm2->day))
 
 #endif
+/*-----------------------------------------------------------------------------------------------*/
 
 #define FLASH_BLOCK_SIZE			4096
 #define FLASH_MEMORY_SIZE			(16<<20)
@@ -84,6 +87,7 @@
 // #define ENABLE_MODULE_EXV
 // #define ENABLE_MODULE_FIXPT
 // #define ENABLE_MODULE_FROZEN
+/**************************************************************************************************/
 
 #endif
 

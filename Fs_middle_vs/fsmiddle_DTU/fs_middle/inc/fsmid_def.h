@@ -4,12 +4,12 @@
 #include "sysTimerV1.h"
 
 
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 extern "C" {
 #endif
 
-
 #pragma pack(push,1)
+/**************************************************************************************************/
 
 #ifndef NULL
 #define NULL	0
@@ -48,7 +48,8 @@ typedef struct __cp56time2a {
 }CP56TIME2A;
 #endif
 
-enum __fsmid_result{
+enum __fsmid_result
+{
 	FSMIDR_OK = 0,
 	FSMIDR_GENERAL,
 	FSMIDR_LEAK_MEMORY,
@@ -60,7 +61,9 @@ enum __fsmid_result{
 	FSMIDR_POINT_NOT_NULL,
 };
 
-typedef struct __fslog_interface{
+/*-----------------------------------------------------------------------------------------------*/
+typedef struct __fslog_interface
+{
 	int (*write)(unsigned int address, const void* data, unsigned int length);
 	int (*read)(unsigned int address, void* data, unsigned int length);
 	int (*erase)(unsigned int address, unsigned int length);
@@ -68,7 +71,7 @@ typedef struct __fslog_interface{
 
 #pragma pack(pop)
 
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 };
 #endif
 

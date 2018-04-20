@@ -1,8 +1,13 @@
-#include "dbmsV1.h"
-#include "dpa10x.h"
 #include <string.h>
+#ifndef CPU_MK64FN1M0VMD12
+#include "dbmsV1.h"
+#endif
 #include "fs_middle.h"
+#include "dpa10x.h"
 
+#ifdef CPU_MK64FN1M0VMD12
+static unsigned int numInfoAddrLen;
+#endif
 static FSMID_POINT* tableMeasure = NULL;
 static unsigned int numMeasure;
 
@@ -24,6 +29,17 @@ typedef struct __st_fsmid_config{
 
 #define START_ADDRESS_CONFIG		(START_BLOCK_CONFIG*FLASH_BLOCK_SIZE)
 
+#ifdef CPU_MK64FN1M0VMD12
+unsigned int db_GetInfoAddressLength(void)
+{
+	return numInfoAddrLen;
+}
+const char *db_GetTerminalID()
+{
+	return (const char *)BOARD_STR_DEVTYP;
+}
+#endif
+
 void FSMID_InitConfig()
 {
 	int bChanged = 0;
@@ -36,7 +52,9 @@ void FSMID_InitConfig()
 	FSMID_POINT *pPoint;
 	FSMID_CONFIG *pConfig;
 
-	
+	#ifdef CPU_MK64FN1M0VMD12
+	numInfoAddrLen = (unsigned int)dpa101appl.pcfg->portcfg.inflen;
+	#endif
 
 	pfrm = dpa101appl.pport->pfrm;
 	for (i = 0,numMeasure = 0; i < dpa101appl.pport->frmnum; i++, pfrm++)

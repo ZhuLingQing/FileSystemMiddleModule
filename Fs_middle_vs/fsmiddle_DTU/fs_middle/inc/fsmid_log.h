@@ -17,21 +17,18 @@
 #define FSLOG_ATTR_OPEN_CREATE		(3<<26)
 
 
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 extern "C" {
 #endif
 
 
 #pragma pack(push,1)
 
+#ifdef CPU_MK64FN1M0VMD12
+extern  unsigned char	Memtmp_WriteLog[];
+extern  unsigned char	Memtmp_ReadLog[];
+#endif
 
-
-
-typedef struct __fslog_function{
-	int (*format_header)(char *buf, struct __fslog* log);
-	int (*format_data)(char *buf, const void* data);
-	const SYS_TIME64 *(*time)(const void *data);
-}FSLOG_FUNCTION;
 
 typedef struct __fslog_information{
 	unsigned int baseAddress;
@@ -52,7 +49,7 @@ typedef struct __fslog_information{
 
 typedef struct __fslog{
 	char name[64];
-	const FSLOG_FUNCTION  *pFunction;
+	const struct __fslog_function *pFunction;
 	const FSLOG_INFORMATION *pInformation;
 	unsigned int timeCreateUnix;
 
@@ -72,6 +69,12 @@ typedef struct __fslog{
 	unsigned int indexLast;
 	//unsigned int indexRead;
 }FSLOG;
+
+typedef struct __fslog_function{
+	int (*format_header)(char *buf, struct __fslog* log);
+	int (*format_data)(char *buf, const void* data);
+	const SYS_TIME64 *(*time)(const void *data);
+}FSLOG_FUNCTION;
 
 void FSLOG_Init( const FSLOG_INTERFACE *pInterface);
 
@@ -129,7 +132,7 @@ FSLOG *FSLOG_Search( const char *pname);
 
 #pragma pack(pop)
 
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 };
 #endif
 

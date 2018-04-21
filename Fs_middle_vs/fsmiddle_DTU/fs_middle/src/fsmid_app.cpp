@@ -145,10 +145,9 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 		logExtremeTable[i] = FSLOG_Open(TEMP_EXV_NAME,&funcLogExtreme,pInfo,FSLOG_ATTR_OPEN_EXIST|FSLOG_ATTR_OTP);
 		fsmid_assert(*ppLog,__FILE__,__LINE__);
 		address += pInfo->blockNumber * pInfo->blockSize;
-		if((*ppLog)->timeCreateUnix)
+		if((*ppLog)->timeCreate.year != 0)
 		{
-			time_unix2sys((*ppLog)->timeCreateUnix,&sysTime);
-			FSMID_FormatLogName(*ppLog,"exv",&sysTime);
+			FSMID_FormatLogName(*ppLog,"exv",&(*ppLog)->timeCreate);
 			nExtreme++;
 		}
 		else if(!logExtreme)
@@ -180,10 +179,9 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 		logFixptTable[i] = FSLOG_Open(TEMP_FIXPT_NAME,&funcLogFixpt,pInfo,FSLOG_ATTR_OPEN_EXIST|FSLOG_ATTR_OTP);
 		fsmid_assert(ppLog,__FILE__,__LINE__);
 		address += pInfo->blockNumber * pInfo->blockSize;
-		if((*ppLog)->timeCreateUnix)
+		if((*ppLog)->timeCreate.year != 0)
 		{
-			time_unix2sys((*ppLog)->timeCreateUnix,&sysTime);
-			FSMID_FormatLogName(*ppLog,"fixpt",&sysTime);
+			FSMID_FormatLogName(*ppLog,"fixpt",&(*ppLog)->timeCreate);
 			nFixpt++;
 			//select current day file
 			if(systimeSameDay(&sysTime,tm64))
@@ -200,7 +198,7 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 		if(strcmp((*logFixpt)->name,TEMP_FIXPT_NAME)==0)
 		{
 			FSMID_FormatLogName(*logFixpt,"fixpt",tm64);
-			(*logFixpt)->timeCreateUnix = time_sys2unix(tm64);
+			memcpy(&(*logFixpt)->timeCreate,tm64,sizeof(SYS_TIME64));
 			nFixpt++;
 		}
 	}
@@ -230,10 +228,9 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 		logFrozenTable[i] = FSLOG_Open(TEMP_FRZ_NAME,&funcLogFrozen,pInfo,FSLOG_ATTR_OPEN_EXIST|FSLOG_ATTR_OTP);
 		fsmid_assert(ppLog,__FILE__,__LINE__);
 		address += pInfo->blockNumber * pInfo->blockSize;
-		if((*ppLog)->timeCreateUnix)
+		if((*ppLog)->timeCreate.year != 0)
 		{
-			time_unix2sys((*ppLog)->timeCreateUnix,&sysTime);
-			FSMID_FormatLogName(*ppLog,"frz",&sysTime);
+			FSMID_FormatLogName(*ppLog,"frz",&(*ppLog)->timeCreate);
 			nFrozen++;
 			//select current day file
 			if(systimeSameDay(&sysTime,tm64))
@@ -250,7 +247,7 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 		if(strcmp((*logFrozen)->name,TEMP_FRZ_NAME)==0)
 		{
 			FSMID_FormatLogName(*logFrozen,"frz",tm64);
-			(*logFrozen)->timeCreateUnix = time_sys2unix(tm64);
+			memcpy(&(*logFrozen)->timeCreate,tm64,sizeof(SYS_TIME64));
 			nFrozen++;
 		}
 	}
@@ -481,7 +478,7 @@ static void FSMID_SaveExtremeLog(const SYS_TIME64 *tm64)
 	{
 		FSLOG_Clear(*logExtreme);
 	}
-	(*logExtreme)->timeCreateUnix = time_sys2unix(&pExtreme->time);
+	memcpy(&(*logExtreme)->timeCreate,&pExtreme->time,sizeof(SYS_TIME64));
 	FSMID_FormatLogName(*logExtreme,"exv",&pExtreme->time);
 	
 	FSLOG_Lock(*logExtreme);
@@ -537,7 +534,7 @@ static void FSMID_SaveFixptLog(const SYS_TIME64 *tm64)
 
 	if((*logFixpt)->unitNumber)
 		FSLOG_Clear(*logFixpt);
-	(*logFixpt)->timeCreateUnix = time_sys2unix(tm64);
+	memcpy(&(*logFixpt)->timeCreate,tm64,sizeof(SYS_TIME64));
 	FSMID_FormatLogName(*logFixpt,"fixpt",tm64);
 #endif
 }
@@ -565,7 +562,7 @@ static void FSMID_SaveFrozenLog(const SYS_TIME64 *tm64)
 
 	if((*logFrozen)->unitNumber)
 		FSLOG_Clear(*logFrozen);
-	(*logFrozen)->timeCreateUnix = time_sys2unix(tm64);
+	memcpy(&(*logFrozen)->timeCreate,tm64,sizeof(SYS_TIME64));
 	FSMID_FormatLogName(*logFrozen,"frz",tm64);
 #endif
 }

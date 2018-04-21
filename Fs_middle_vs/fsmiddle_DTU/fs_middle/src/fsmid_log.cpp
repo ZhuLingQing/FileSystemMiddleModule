@@ -2,7 +2,6 @@
 #include <string.h>
 #include "dbmsV1.h"
 #include "fs_middle.h"
-#include "fsl_debug_console.h"
 
 #undef  _FSLOG_INFO_MSG_
 //#define _FSLOG_INFO_MSG_
@@ -302,7 +301,7 @@ FSLOG* FSLOG_Open( const char* pName, const FSLOG_FUNCTION * pFunction, const FS
 			fsmid_assert(data,__FILE__,__LINE__);
 			FSLOG_ReadData(pLog,0,data);
 			tm64 = pFunction->time(data);
-			pLog->timeCreateUnix = time_sys2unix(tm64);
+			memcpy(&pLog->timeCreate,tm64,sizeof(SYS_TIME64));
 			
 			pLog->formatedSize += pFunction->format_header(NULL,pLog);
 			for( i = 0; i < pLog->unitNumber; i++ )
@@ -566,7 +565,7 @@ void FSLOG_ReleaseFilter()
 	nFiltedLog = 0;
 }
 
-unsigned int FSLOG_Filter(const char *pCondition, unsigned int *timeUnixPair)
+unsigned int FSLOG_Filter(const char *pCondition, SYS_TIME64 *timeSysPair)
 {
 	struct list_head *container;
 	FSLOG *iterator;
@@ -580,12 +579,13 @@ unsigned int FSLOG_Filter(const char *pCondition, unsigned int *timeUnixPair)
 		if(__is_filted_name(iterator->name,pCondition))
 		if(iterator->unitNumber)
 		{
-			if(!timeUnixPair)
+			if(!timeSysPair)
 			{
 				headFiltedLog[nFiltedLog] = iterator;
 				nFiltedLog++;
 			}
-			else if(iterator->timeCreateUnix >= timeUnixPair[0] && iterator->timeCreateUnix <= timeUnixPair[1])
+			else if(systimeCmp(&iterator->timeCreate,timeSysPair) >= 0 && systimeCmp(&iterator->timeCreate,timeSysPair + 1) <= 0)
+			//else if(iterator->timeCreateUnix >= timeUnixPair[0] && iterator->timeCreateUnix <= timeUnixPair[1])
 			{
 				headFiltedLog[nFiltedLog] = iterator;
 				nFiltedLog++;

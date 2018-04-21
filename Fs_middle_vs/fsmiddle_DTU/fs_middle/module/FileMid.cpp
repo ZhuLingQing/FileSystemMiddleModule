@@ -1,6 +1,13 @@
+#include "dbmsV1.h"
 #include "fs_middle.h"
 #include <stdio.h>
 #include <string.h>
+
+
+#ifdef CPU_MK64FN1M0VMD12
+#include "flashshell.h"
+static bool f_ProgramUpgrade = false;
+#endif
 
 struct __filemid_operate{
 	unsigned char code;
@@ -14,20 +21,20 @@ struct __filemid_response{
 
 uint8 __folder_call(uint8 *rxbuf, uint16 len);
 uint8 __file_read_activate(uint8 *rxbuf, uint16 len);
-uint8 __file_read_confirm(uint8 *rxbuf, uint16 len);
+uint8 __file_read_confirm_rx(uint8 *rxbuf, uint16 len);
 uint8 __file_write_activate(uint8 *rxbuf, uint16 len);
 uint8 __file_write_transfer(uint8 *rxbuf, uint16 len);
 
 uint8 __folder_call_confirm(uint8 *txbuf, uint16 *len);
-uint8 __file_read_confirm(uint8 *txbuf, uint16 *len);
+uint8 __file_read_confirm_tx(uint8 *txbuf, uint16 *len);
 uint8 __file_read_transfer_confirm(uint8 *txbuf, uint16 *len);
 uint8 __file_write_confirm(uint8 *txbuf, uint16 *len);
 uint8 __file_write_transfer_confirm(uint8 *txbuf, uint16 *len);
 
 static const struct __filemid_operate __the_filemid_op[] = {
 	{1,__folder_call,__folder_call_confirm},
-	{3,__file_read_activate,__file_read_confirm},
-	{6,__file_read_confirm,__file_read_transfer_confirm},
+	{3,__file_read_activate,__file_read_confirm_tx},
+	{6,__file_read_confirm_rx,__file_read_transfer_confirm},
 	{7,__file_write_activate,__file_write_confirm},
 	{9,__file_write_transfer,__file_write_transfer_confirm},
 	{0,NULL,NULL}
@@ -43,6 +50,17 @@ static uint32 s_writeLength;
 static char *s_filename = NULL;
 
 static uint32 s_offset;
+
+#ifdef CPU_MK64FN1M0VMD12
+void FileMid_ProgramUpgrade(bool yes)
+{
+	f_ProgramUpgrade = yes;
+	if(yes == true)
+	{
+		flashshell_Erase(MEMADDR_FLASH_PRG1, MEMSIZE_FLASH_PRG);//²Á³ýPRG1ºÍCBK1
+	}	
+}
+#endif
 
 //rexbuf[0] is "Operate Mark"
 uint8 FileMid_101Requir(uint8 *rexbuf, uint16 rexlen, uint16 rcot)
@@ -78,7 +96,7 @@ static uint8 __folder_call(uint8 *rxbuf, uint16 len)
 {
 	char *pFilter;
 	uint8 length = rxbuf[5];
-	unsigned int timeUnixPair[2];
+	SYS_TIME64 tm64Pair[2];
 
 	memcpy(&s_selectID,rxbuf + 1,4);
 	pFilter = fsmid_malloc(char,length + 1);
@@ -92,9 +110,9 @@ static uint8 __folder_call(uint8 *rxbuf, uint16 len)
 		filtedItemCount = FSLOG_Filter(pFilter,NULL);
 	else
 	{
-		timeUnixPair[0] = time_sys2unix((const SYS_TIME64 *)rxbuf);
-		timeUnixPair[1] = time_sys2unix((const SYS_TIME64 *)(rxbuf + sizeof(SYS_TIME64)));
-		filtedItemCount = FSLOG_Filter(pFilter,timeUnixPair);
+		cp56ToSystime((const CP56TIME2A*)rxbuf,tm64Pair);
+		cp56ToSystime((const CP56TIME2A*)(rxbuf + sizeof(CP56TIME2A)),tm64Pair + 1);
+		filtedItemCount = FSLOG_Filter(pFilter,tm64Pair);
 	}
 	s_offset = 0;
 
@@ -123,7 +141,7 @@ static uint8 __file_read_activate(uint8 *rxbuf, uint16 len)
 	return 2;
 }
 
-static uint8 __file_read_confirm(uint8 *rxbuf, uint16 len)
+static uint8 __file_read_confirm_rx(uint8 *rxbuf, uint16 len)
 {
 	if(rxbuf[9] == 0)
 	{
@@ -195,8 +213,7 @@ uint8 __folder_call_confirm(uint8 *txbuf, uint16 *len)
 		*txbuf++ = 0;//attribute
 		memcpy(txbuf,&pLog->formatedSize,4);
 		txbuf += 4;
-		time_unix2sys(pLog->timeCreateUnix,&tm64);
-		memcpy(txbuf,&tm64,sizeof(SYS_TIME64));
+		systimeToCp56(&pLog->timeCreate,(CP56TIME2A*)txbuf);
 		*len += 1 + length + 1 + 4 + 7;
 		txbuf += 7;
 		s_offset++;
@@ -205,7 +222,7 @@ uint8 __folder_call_confirm(uint8 *txbuf, uint16 *len)
 	return (filtedItemCount == s_offset)?0:2;
 }
 
-uint8 __file_read_confirm(uint8 *txbuf, uint16 *len)
+uint8 __file_read_confirm_tx(uint8 *txbuf, uint16 *len)
 {
 	uint32 length = 0;
 

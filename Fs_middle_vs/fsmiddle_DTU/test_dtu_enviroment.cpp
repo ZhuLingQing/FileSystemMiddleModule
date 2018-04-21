@@ -63,7 +63,6 @@ void __create_folder(const char *fileName)
 
 void printLog(FSLOG *pLog)
 {
-	SYS_TIME64 tm64;
 	if(!pLog)
 	{
 		printf("!LOG pointer is NULL.\n");
@@ -71,10 +70,9 @@ void printLog(FSLOG *pLog)
 	}
 
 	printf("Name:%s.\n",pLog->name);
-	if(pLog->timeCreateUnix)
+	if(pLog->timeCreate.year != 0)
 	{
-		time_unix2sys(pLog->timeCreateUnix,&tm64);
-		printf("Create:20%02d-%02d-%02d\n",tm64.year,tm64.mon,tm64.day);
+		printf("Create:20%02d-%02d-%02d\n",pLog->timeCreate.year,pLog->timeCreate.mon,pLog->timeCreate.day);
 	}
 	else
 		printf("Create: -N\\A-\n");
@@ -378,7 +376,7 @@ void save_log_file(FSLOG *pLog)
 	char fname[MAX_PATH];
 	int i,j;
 	FILE *file;
-	unsigned char *buf;
+	//unsigned char *buf;
 	
 	i = sprintf(fname,"%s\\log\\%s",exeFullPath,pLog->name);
 	fname[i] = 0;

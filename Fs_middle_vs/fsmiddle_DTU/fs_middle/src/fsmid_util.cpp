@@ -54,94 +54,40 @@ bool systimeSameDay(const SYS_TIME64 *tm1, const SYS_TIME64 *tm2)
 	return false;
 }
 
-#include <time.h>
-static const int MON1[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};   //平年  
-static const int MON2[12] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};   //闰年  
-static const int FOURYEARS = (366 + 365 +365 +365); //每个四年的总天数  
-static const int SEC_PER_DAY = 24*3600;   //每天的秒数  
-
-bool unixSameDay(unsigned int tm1, unsigned int tm2)
+void systimeToCp56(const SYS_TIME64 *tm64,CP56TIME2A * cp56)
 {
-	tm1 /= SEC_PER_DAY;
-	tm2 /= SEC_PER_DAY;
-	if(tm1 == tm2)
-		return true;
-	return false;
+	fsmid_assert(cp56&&tm64,__FUNCTION__,__LINE__);
+	cp56->year = tm64->year;
+	cp56->month = tm64->mon;
+	cp56->monthDay = tm64->day;
+
+	cp56->hour = tm64->hour;
+	cp56->minute = tm64->min;
+	cp56->milliSecond = tm64->sec;
+	cp56->milliSecond *= 1000;
+	cp56->milliSecond += tm64->msec;
+
+	cp56->summerTime = 0;
+	cp56->invalid = 0;
+	if(tm64->mon < 2)
+		cp56->weekDay = (tm64->year-1)+(tm64->year-1)/4-35+26*(cp56->month+13)/10+tm64->day-1;
+	else
+		cp56->weekDay = tm64->year+tm64->year/4-35+26*(cp56->month+1)/10+tm64->day-1;
 }
 
-void __get_day(int nDays, SYS_TIME64 *systime, bool IsLeapYear)  
-{  
-	const int *pMonths = IsLeapYear?MON2:MON1;  
-	//循环减去12个月中每个月的天数，直到剩余天数小于等于0，就找到了对应的月份  
-	for ( int i=0; i<12; ++i )  
-	{  
-		int nTemp = nDays - pMonths[i];  
-		if ( nTemp<=0 )  
-		{  
-			systime->mon = i+1;  
-			if ( nTemp == 0 )//表示刚好是这个月的最后一天，那么天数就是这个月的总天数了  
-				systime->day = pMonths[i];  
-			else  
-				systime->day = nDays;  
-			break;  
-		}  
-		nDays = nTemp;  
-	}  
-}  
-
-unsigned int time_sys2unix(const SYS_TIME64 *systime)
+void cp56ToSystime(const CP56TIME2A *cp56, SYS_TIME64 *tm64)
 {
-	struct tm stm; 
-	memset(&stm,0,sizeof(stm)); 
+	fsmid_assert(cp56&&tm64,__FUNCTION__,__LINE__);
+	tm64->year = cp56->year;
+	tm64->mon = cp56->month;
+	tm64->day = cp56->monthDay;
 
-	stm.tm_year=systime->year - 1900 + 2000; 
-	stm.tm_mon=systime->mon-1; 
-	stm.tm_mday=systime->day; 
-	stm.tm_hour=systime->hour; 
-	stm.tm_min=systime->min; 
-	stm.tm_sec=systime->sec; 
-
-    #ifdef CPU_MK64FN1M0VMD12
-    return 0;
-    #else
-    return (unsigned int)_mktime32(&stm);  
-    #endif
+	tm64->hour = cp56->hour;
+	tm64->min = cp56->minute;
+	tm64->sec = cp56->milliSecond/1000;
+	tm64->msec = cp56->milliSecond%1000;
 }
 
-void time_unix2sys(unsigned int unix, SYS_TIME64 *systime)
-{
-	unix += 8*3600;//北京时间 +8小时
-	int nDays = unix/SEC_PER_DAY + 1;    //time函数获取的是从1970年以来的毫秒数，因此需要先得到天数  
-	int nYear4 = nDays/FOURYEARS;   //得到从1970年以来的周期（4年）的次数  
-	int nRemain = nDays%FOURYEARS;  //得到不足一个周期的天数  
-	systime->year = 1970 + nYear4*4 - 2000;  
-	bool bLeapYear = false;
-	if ( nRemain<365 )//一个周期内，第一年  
-	{//平年  
-
-	}  
-	else if ( nRemain<(365+365) )//一个周期内，第二年  
-	{//平年  
-		systime->year += 1;  
-		nRemain -= 365;  
-	}  
-	else if ( nRemain<(365+365+365) )//一个周期内，第三年  
-	{//平年  
-		systime->year += 2;  
-		nRemain -= (365+365);  
-	}  
-	else//一个周期内，第四年，这一年是闰年  
-	{//润年  
-		systime->year += 3;  
-		nRemain -= (365+365+365);  
-		bLeapYear = true;  
-	}  
-	__get_day(nRemain, systime, bLeapYear);
-	systime->hour = (unix % SEC_PER_DAY)/3600;
-	systime->min = (unix% 3600)/60;
-	systime->sec = unix % 60;
-	systime->msec = 0;
-}
 
 unsigned char byteChecksum(unsigned char seed, unsigned char *buf, unsigned int length)
 {

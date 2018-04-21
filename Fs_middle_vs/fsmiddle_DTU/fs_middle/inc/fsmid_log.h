@@ -51,7 +51,7 @@ typedef struct __fslog{
 	char name[64];
 	const struct __fslog_function *pFunction;
 	const FSLOG_INFORMATION *pInformation;
-	unsigned int timeCreateUnix;
+	SYS_TIME64 timeCreate;
 
 	FSMID_MUTEX mutex;
 	struct list_head _node;
@@ -122,7 +122,7 @@ const char* FSLOG_GetName(FSLOG* pLog);
 
 void FSLOG_ReleaseFilter();
 
-unsigned int FSLOG_Filter(const char *pCondition, unsigned int *timeUnixPair);
+unsigned int FSLOG_Filter(const char *pCondition, SYS_TIME64 *timeSysPair);
 
 unsigned int FSLOG_GetFiltedCount();
 

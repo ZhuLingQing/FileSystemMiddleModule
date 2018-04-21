@@ -35,12 +35,10 @@ static int format_header_co(char *buf, FSLOG* pLog)
 static int format_header_exv(char *buf, FSLOG* pLog)
 {
 	int len;
-	SYS_TIME64 tm64;
 	if(buf)
 	{
-		time_unix2sys(pLog->timeCreateUnix,&tm64);
 		len = sprintf(buf,"%s,%s\r\n%-24s,20%02d%02d%02d,%2d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),
-		tm64.year,tm64.mon,tm64.day,
+		pLog->timeCreate.year,pLog->timeCreate.mon,pLog->timeCreate.day,
 		db_GetInfoAddressLength());
 	}
 	else
@@ -51,12 +49,10 @@ static int format_header_exv(char *buf, FSLOG* pLog)
 static int format_header_fixpt(char *buf, FSLOG* pLog)
 {
 	int len;
-	SYS_TIME64 tm64;
 	if(buf)
 	{
-		time_unix2sys(pLog->timeCreateUnix,&tm64);
 		len = sprintf(buf,"%s,%s\r\n%-24s,20%02d%02d%02d,%2d,%2d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),
-			tm64.year,tm64.mon,tm64.day,
+			pLog->timeCreate.year,pLog->timeCreate.mon,pLog->timeCreate.day,
 			FSLOG_GetUnitCount(pLog),db_GetInfoAddressLength());
 	}
 	else
@@ -67,12 +63,10 @@ static int format_header_fixpt(char *buf, FSLOG* pLog)
 static int format_header_frz(char *buf, FSLOG* pLog)
 {
 	int len;
-	SYS_TIME64 tm64;
 	if(buf)
 	{
-		time_unix2sys(pLog->timeCreateUnix,&tm64);
 		len = sprintf(buf,"%s,%s\r\n%-24s,20%02d%02d%02d,%2d,%2d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),
-			tm64.year,tm64.mon,tm64.day,
+			pLog->timeCreate.year,pLog->timeCreate.mon,pLog->timeCreate.day,
 			FSLOG_GetUnitCount(pLog),db_GetInfoAddressLength());
 	}
 	else

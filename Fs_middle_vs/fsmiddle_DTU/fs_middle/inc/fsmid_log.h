@@ -62,7 +62,7 @@ typedef struct __fslog{
 	unsigned int maxUnitCount;
 
 	//dynamic whole life cycle
-	unsigned int formatedSize;
+	unsigned int formatedSize;         
 	unsigned int pointerId;
 	unsigned int unitNumber;
 	unsigned int indexFirst;

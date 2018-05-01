@@ -3,7 +3,8 @@
 
 #define FSMID_MODULE_VERSION		0.90
 
-#define LOG_FILE_VERSION		"1.0"
+#define LOG_FILE_VERSION		"v1.0"
+#define LOG_FILE_HEADER         "ÎÄ¼þÍ·£º"
 
 /**************************************************************************************************/
 
@@ -43,7 +44,7 @@
 /*-----------------------------------------------------------------------------------------------*/
 
 #define FLASH_BLOCK_SIZE			4096
-#define FLASH_MEMORY_SIZE			(16<<20)
+#define FLASH_MEMORY_SIZE			(8<<20)//(16<<20)
 
 #define START_BLOCK_FIRMWARE		0
 #define NUM_BLOCK_FIRMWARE			((512*1024)/FLASH_BLOCK_SIZE)
@@ -76,7 +77,7 @@
 
 #define START_BLOCK_LOG_CO			(START_BLOCK_LOG_SOE + NUM_BLOCK_LOG_SOE)
 #define NUM_BLOCK_LOG_CO			6
-#define NUM_POINT_LOG_CO			1024
+#define NUM_POINT_LOG_CO			30
 
 #define DYNAMIC_START_BLOCK			(NUM_BLOCK_FIRMWARE + 128)
 

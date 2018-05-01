@@ -29,7 +29,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	getCurrentFolder(exeFullPath);
 #if 0
 	test_log(exeFullPath);
-#elif 0
+#elif 1
 	HANDLE t1 = CreateThread(NULL, 0, threadConsole, exeFullPath, 0, NULL); 
 	WaitForSingleObject(t1,INFINITE);
 #else

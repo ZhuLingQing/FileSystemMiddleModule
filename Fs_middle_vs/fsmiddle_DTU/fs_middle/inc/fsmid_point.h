@@ -25,7 +25,7 @@ typedef struct __log_soe_co{
 	SYS_TIME64 time;
 	unsigned int information;
 	unsigned char value;
-	unsigned char reserved[3];
+    unsigned char reserved[3];
 }LOG_SOE,LOG_CO;
 
 #define EXTREME_MAX_MARK		0xFFFF
@@ -53,7 +53,7 @@ typedef struct __struct_fsmid_point{
 
 #pragma pack(pop)
 
-void FSMID_InitConfig();
+int FSMID_InitConfig();
 
 FSMID_POINT * const GetMeasureTable();
 unsigned int GetMeasureCount();

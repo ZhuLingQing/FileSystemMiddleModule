@@ -155,7 +155,7 @@ static int __fslog_init(FSLOG *pLog)
 		}
 		else
 		{
-			PRINTF("!FAIL(%s) at 0x%08X, sig: 0x%08X\n",pLog->name,address,header.signature);
+			fsmid_info("!FAIL(%s) at 0x%08X, sig: 0x%08X\r\n",pLog->name,address,header.signature);
 			fsmid_assert(0,__FILE__,__LINE__);
 		}
 #endif
@@ -304,17 +304,17 @@ FSLOG* FSLOG_Open( const char* pName, const FSLOG_FUNCTION * pFunction, const FS
 			memcpy(&pLog->timeCreate,tm64,sizeof(SYS_TIME64));
 			
 			pLog->formatedSize += pFunction->format_header(NULL,pLog);
-			for( i = 0; i < pLog->unitNumber; i++ )
+			for( i = 0; i < min(pLog->pInformation->unitCount,pLog->unitNumber); i++ )
 			{
 				FSLOG_ReadData(pLog,i,data);
 				pLog->formatedSize += pFunction->format_data(NULL,data);
 			}
 			
 			fsmid_free(data);
-			FSLOG_INFO_MSG("[FSOPEN] \"%s\". Create:%02d-%02d-%02d. Placed: 0x%08X, ID:%d, %d unit.\n",pLog->name,tm64->year,tm64->mon,tm64->day,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
+			FSLOG_INFO_MSG("[FSOPEN] \"%s\". Create:%02d-%02d-%02d. Placed: 0x%08X, ID:%d, %d unit.\r\n",pLog->name,tm64->year,tm64->mon,tm64->day,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
 		}
 		else
-			FSLOG_INFO_MSG("[FSOPEN] \"%s\". Placed: 0x%08X, ID:%d, %d unit.\n",pLog->name,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
+			FSLOG_INFO_MSG("[FSOPEN] \"%s\". Placed: 0x%08X, ID:%d, %d unit.\r\n",pLog->name,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
 	}
 	list_add_tail(&pLog->_node,&headMainLog);
 	return pLog;
@@ -332,7 +332,7 @@ int FSLOG_Write(FSLOG *pLog, const void* data)
 	//write data into flash
 	address = __fslog_index2address(pLog->indexLast);
 	fsmid_assert(!log_write(address,data,pLog->pInformation->unitSize),__FILE__,__LINE__);
-	if(pLog->pFunction)
+	if(pLog->pFunction && pLog->unitNumber < pLog->pInformation->unitCount)
 		pLog->formatedSize += pLog->pFunction->format_data(NULL,data);
 	else
 		pLog->formatedSize += pLog->pInformation->unitSize;
@@ -349,13 +349,13 @@ int FSLOG_Write(FSLOG *pLog, const void* data)
 			if(pLog->indexFirst >= pLog->maxUnitCount)
 				pLog->indexFirst -= pLog->maxUnitCount;
 			pLog->unitNumber -= pLog->unitPerBlock;
-			if(pLog->pFunction)
-				pLog->formatedSize -= pLog->pFunction->format_data(NULL,0) * pLog->unitPerBlock;
-			else
-				pLog->formatedSize -= pLog->pInformation->unitSize * pLog->unitPerBlock;
+// 			if(pLog->pFunction)
+// 				pLog->formatedSize -= pLog->pFunction->format_data(NULL,0) * pLog->unitPerBlock;
+// 			else
+// 				pLog->formatedSize -= pLog->pInformation->unitSize * pLog->unitPerBlock;
 		}
 	}
-	FSLOG_INFO_MSG("[FSWRITE] \"%s\". Placed: 0x%08X, ID:%d, %d unit.\n",pLog->name,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
+	FSLOG_INFO_MSG("[FSWRITE] \"%s\". Placed: 0x%08X, ID:%d, %d unit.\r\n",pLog->name,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
 	//FSLOG_PushEvent(pLog);
 	return 0;
 }
@@ -369,6 +369,8 @@ int FSLOG_WriteBinary(FSLOG *pLog, const void *data, unsigned int length)
 	fsmid_mutex_lock(pLog->mutex);
 
 	log_write(address,data,length);
+	fsmid_info("[LOG_WRITE] 0x%08X, %d, [%08X].\r\n",address,length,*(unsigned int*)data);
+	
 	pLog->unitNumber += length;
 	pLog->indexLast += length;
 
@@ -473,7 +475,10 @@ int FSLOG_Clear(FSLOG *pLog)
 	fsmid_mutex_lock(pLog->mutex);
 
 	if(pLog->attribute & FSLOG_ATTR_DATA_ONLY)
-		log_erase(pLog->pInformation->baseAddress,pLog->unitNumber);
+	{
+		log_erase(pLog->pInformation->baseAddress,pLog->maxUnitCount);
+		fsmid_info("[ERASE_BIN] 0x%08X, %d.\r\n",pLog->pInformation->baseAddress,pLog->maxUnitCount);
+	}
 	else
 	{
 		for( i = 0; i <pLog->pInformation->blockNumber; i++ )
@@ -486,7 +491,7 @@ int FSLOG_Clear(FSLOG *pLog)
 	pLog->indexFirst = 0;
 	pLog->indexLast = 0;
 	pLog->formatedSize = 0;
-	FSLOG_INFO_MSG("[FSCLEAR] \"%s\". Placed: 0x%08X.\n",pLog->name,pLog->pInformation->baseAddress);
+	FSLOG_INFO_MSG("[FSCLEAR] \"%s\". Placed: 0x%08X.\r\n",pLog->name,pLog->pInformation->baseAddress);
 	
 	fsmid_mutex_unlock(pLog->mutex);
 	return 0;
@@ -633,9 +638,32 @@ FSLOG *FSLOG_Search( const char *pname)
 	list_for_each(container,&headMainLog)
 	{
 		iterator = list_entry(container,FSLOG,_node);
-		fname = FSLOG_GetName(iterator);
-		if(strcmp(fname,pname) == 0)
+		//fname = FSLOG_GetName(iterator);//hgy---------
+		if(strcmp(iterator->name,pname) == 0)//if(strcmp(fname,pname) == 0)
 			return iterator;
 	}
 	return NULL;
 }
+
+// unsigned int FSLOG_Get1stPosition(FSLOG* pLog)
+// {
+// 	unsigned int res;
+// 
+// 	fsmid_mutex_lock(pLog->mutex);
+// 	res = pLog->indexFirst;
+// 	fsmid_mutex_unlock(pLog->mutex);
+// 	return res;
+// }
+// 
+// unsigned int FSLOG_MovePosition(FSLOG* pLog, unsigned int position)
+// {
+// 	unsigned int res;
+// 
+// 	fsmid_mutex_lock(pLog->mutex);
+// 	res = pLog->indexFirst + position;
+// 	if(res >= pLog->maxUnitCount)
+// 		res -= pLog->maxUnitCount;
+// 
+// 	fsmid_mutex_unlock(pLog->mutex);
+// 	return res;
+// }

@@ -6,8 +6,8 @@
 
 static int format_info_addr_len(char *buf,unsigned int infoAddr)
 {
-	char fmt_format[] = "%02X";
-	fmt_format[2] = db_GetInfoAddressLength() + '0';
+	char fmt_format[] = "%04X";
+	fmt_format[2] = db_GetInfoAddressLength()*2 + '0';
 	int len = sprintf(buf,fmt_format,infoAddr);
 	return len;
 }
@@ -16,7 +16,7 @@ static int format_header_soe(char *buf, FSLOG* pLog)
 {
 	int len;
 	if(buf)
-		len = sprintf(buf,"%s,%s\r\n%-24s,%4d,%2d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),FSLOG_GetUnitCount(pLog),db_GetInfoAddressLength());
+		len = sprintf(buf,"%s,%s\r\n%-24s,%04d,%02d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),FSLOG_GetUnitCount(pLog),db_GetInfoAddressLength());
 	else
 		len = strlen(FSLOG_GetName(pLog)) + 1 + strlen(LOG_FILE_VERSION) + 2 + 24 + 1 + 4 + 1 + 2 + 2;
 	return len;
@@ -26,7 +26,7 @@ static int format_header_co(char *buf, FSLOG* pLog)
 {
 	int len;
 	if(buf)
-		len = sprintf(buf,"%s,%s\r\n%-24s,%4d,%2d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),FSLOG_GetUnitCount(pLog)*2,db_GetInfoAddressLength());
+		len = sprintf(buf,"%s,%s\r\n%-24s,%04d,%02d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),FSLOG_GetUnitCount(pLog)*2,db_GetInfoAddressLength());
 	else
 		len = strlen(FSLOG_GetName(pLog)) + 1 + strlen(LOG_FILE_VERSION) + 2 + 24 + 1 + 4 + 1 + 2 + 2;
 	return len;
@@ -37,7 +37,7 @@ static int format_header_exv(char *buf, FSLOG* pLog)
 	int len;
 	if(buf)
 	{
-		len = sprintf(buf,"%s,%s\r\n%-24s,20%02d%02d%02d,%2d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),
+		len = sprintf(buf,"%s,%s\r\n%-24s,20%02d%02d%02d,%02d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),
 		pLog->timeCreate.year,pLog->timeCreate.mon,pLog->timeCreate.day,
 		db_GetInfoAddressLength());
 	}
@@ -51,7 +51,7 @@ static int format_header_fixpt(char *buf, FSLOG* pLog)
 	int len;
 	if(buf)
 	{
-		len = sprintf(buf,"%s,%s\r\n%-24s,20%02d%02d%02d,%2d,%2d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),
+		len = sprintf(buf,"%s,%s\r\n%-24s,20%02d%02d%02d,%02d,%02d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),
 			pLog->timeCreate.year,pLog->timeCreate.mon,pLog->timeCreate.day,
 			FSLOG_GetUnitCount(pLog),db_GetInfoAddressLength());
 	}
@@ -65,7 +65,7 @@ static int format_header_frz(char *buf, FSLOG* pLog)
 	int len;
 	if(buf)
 	{
-		len = sprintf(buf,"%s,%s\r\n%-24s,20%02d%02d%02d,%2d,%2d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),
+		len = sprintf(buf,"%s,%s\r\n%-24s,20%02d%02d%02d,%02d,%02d\r\n",FSLOG_GetName(pLog),LOG_FILE_VERSION,db_GetTerminalID(),
 			pLog->timeCreate.year,pLog->timeCreate.mon,pLog->timeCreate.day,
 			FSLOG_GetUnitCount(pLog),db_GetInfoAddressLength());
 	}
@@ -78,7 +78,7 @@ static int format_header_ulog(char *buf, FSLOG *pLog)
 {
 	int len;
 	if(buf)
-		len = sprintf(buf,"%-24s,%4d\r\n",db_GetTerminalID(),FSLOG_GetUnitCount(pLog));
+		len = sprintf(buf,"%-24s,%04d\r\n",db_GetTerminalID(),FSLOG_GetUnitCount(pLog));
 	else
 		len = 24 + 1 + 4 + 2;
 	return len;
@@ -91,7 +91,7 @@ static int format_ulog(char *buf, const void* data)
 
 	if(buf)
 	{
-		len = sprintf(buf,"%2d,20%02d-%02d-%02d %02d:%02d:%02d.%03d,%-128s,%d\r\n",
+		len = sprintf(buf,"%02d,20%02d-%02d-%02d %02d:%02d:%02d.%03d,%-128s,%d\r\n",
 			log->type,
 			log->time.year,log->time.mon,log->time.day,
 			log->time.hour,log->time.min,log->time.sec,

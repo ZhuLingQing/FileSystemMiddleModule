@@ -36,7 +36,7 @@ extern void test_free(void *);
 #define fsmid_malloc(typ,sz)		(typ *)test_malloc((sz)*sizeof(typ))
 #define fsmid_free(ptr)				test_free(ptr)
 
-#define fsmid_assert(cond,func,line)		do{if(!(cond)){printf("[ASSERT] %s(%d).\n",func,line);while(1);}}while(0)
+#define fsmid_assert(cond,func,line)		do{if(!(cond)){printf("[ASSERT] %s(%d).\r\n",func,line);while(1);}}while(0)
 #define fsmid_warning(str,func,line)		printf(str)//
 #define fsmid_info(s,...)					printf(s,##__VA_ARGS__)
 
@@ -54,9 +54,9 @@ extern void test_free(void *);
 #define fsmid_malloc(typ,sz)            (typ *)pvPortMalloc((sz)*sizeof(typ))
 #define fsmid_free(ptr)                 vPortFree(ptr)
     
-#define fsmid_assert(cond,func,line)	assert(cond)
-#define fsmid_warning(str,func,line)	{}
-#define fsmid_info(s,...)				{}
+#define fsmid_assert(cond,func,line)	do{if(!(cond)){PRINTF("!FSMID_ASSERT at %s, %d\r\n",func,line);while(1);}}while(0)
+#define fsmid_warning(str,func,line)	PRINTF("!FSMID_WARNING %s at %s,%d\r\n",str,func,line);
+#define fsmid_info(s,...)				printf(s,__VA_ARGS__)
     
 extern QueueHandle_t fsmid_mutex;
 #define FSMID_MUTEX                     QueueHandle_t*

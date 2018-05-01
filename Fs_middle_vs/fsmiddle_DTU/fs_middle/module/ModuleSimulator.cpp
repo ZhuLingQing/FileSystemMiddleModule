@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <direct.h>
+#include "ModuleSimulator.h"
 
 #define TEST_UNIT_NUMBER		128//1024
 #define TEST_UNIT_SIZE			128//16
@@ -18,14 +19,19 @@
 #define FLASH_FILE_NAME			"simDTU_FLASH.bin"
 extern FILE* sim_flash_file;
 
-#define NUM_TEST_MEASURE		10
-#define NUM_TEST_FROZEN			5
-
 #define START_INF				100
 #define START_SYSPNT			10
 
+#if NUM_TEST_MEASURE
 float test_measure[NUM_TEST_MEASURE];
+#else
+float *test_measure = NULL;
+#endif
+#if NUM_TEST_FROZEN
 float test_frozen[NUM_TEST_FROZEN];
+#else
+float *test_frozen = NULL;
+#endif
 
 bool bUlogUpdate = false;
 bool bPrtlogUpdate = false;
@@ -196,8 +202,11 @@ void init_dpa_dca_frame()
 	dpa101appl.pport = new struDpa10xPort;
 	ZeroMemory(dpa101appl.pport,sizeof(struDpa10xPort));
 	dpa101appl.pport->frmnum = NUM_TEST_FROZEN + NUM_TEST_MEASURE;
-	dpa101appl.pport->pfrm = new struDpa10xFrm[NUM_TEST_FROZEN + NUM_TEST_MEASURE];
-	ZeroMemory(dpa101appl.pport->pfrm,sizeof(struDpa10xFrm)*(NUM_TEST_FROZEN + NUM_TEST_MEASURE));
+	if(dpa101appl.pport->frmnum)
+	{
+		dpa101appl.pport->pfrm = new struDpa10xFrm[NUM_TEST_FROZEN + NUM_TEST_MEASURE];
+		ZeroMemory(dpa101appl.pport->pfrm,sizeof(struDpa10xFrm)*(NUM_TEST_FROZEN + NUM_TEST_MEASURE));
+	}
 	for(i = 0; i < NUM_TEST_MEASURE; i++ )
 	{
 		dpa101appl.pport->pfrm[i].pcfg = new struDpa10xFrm_Cfg;

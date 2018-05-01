@@ -42,7 +42,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;&quot;$(ProjectDir)fs_middle\inc\&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;FILE_NO_UPDATE;VS_SIMULATE;FAST_MODE;"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;VS_SIMULATE;FAST_MODE;"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -304,6 +304,10 @@
 				</File>
 				<File
 					RelativePath=".\fs_middle\module\ModuleSimulator.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\ModuleSimulator.h"
 					>
 				</File>
 			</Filter>

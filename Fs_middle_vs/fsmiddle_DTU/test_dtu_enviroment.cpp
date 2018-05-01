@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <direct.h>
+#include "ModuleSimulator.h"
 
 #define TEST_UNIT_NUMBER		128//1024
 #define TEST_UNIT_SIZE			128//16
@@ -16,14 +17,8 @@
 #define FLASH_FILE_NAME			"simDTU_FLASH.bin"
 extern FILE* sim_flash_file;
 
-#define NUM_TEST_MEASURE		10
-#define NUM_TEST_FROZEN			5
-
 #define START_INF				100
 #define START_SYSPNT			10
-
-extern float test_measure[NUM_TEST_MEASURE];
-extern float test_frozen[NUM_TEST_FROZEN];
 
 extern bool bUlogUpdate;
 extern bool bPrtlogUpdate;
@@ -337,7 +332,7 @@ DWORD WINAPI signal_generator(LPVOID lpParameter)
 #endif
 
 #if (defined(ENABLE_MODULE_SOE) || defined(ENABLE_MODULE_ALL))
-		if(tm64.sec == tickSoe && !bSoeUpdate)
+		if(tm64.sec == tickSoe && !bSoeUpdate && (NUM_TEST_FROZEN + NUM_TEST_MEASURE))
 		{
 			memcpy(&test_soe.time,&tm64,sizeof(tm64));
 			test_soe.pnt = i_gen_rand(NUM_TEST_FROZEN + NUM_TEST_MEASURE) + START_SYSPNT;
@@ -351,7 +346,7 @@ DWORD WINAPI signal_generator(LPVOID lpParameter)
 #endif
 
 #if (defined(ENABLE_MODULE_CO) || defined(ENABLE_MODULE_ALL))
-		if(tm64.sec == tickTrd && !bTrdUpdate)
+		if(tm64.sec == tickTrd && !bTrdUpdate && (NUM_TEST_FROZEN + NUM_TEST_MEASURE))
 		{
 			//memcpy(&test_trd.time,&tm64,sizeof(tm64));
 			test_trd.pnt = i_gen_rand(NUM_TEST_FROZEN + NUM_TEST_MEASURE) + START_SYSPNT;

@@ -1,22 +1,20 @@
-#include <string.h>
-#ifndef CPU_MK64FN1M0VMD12
 #include "dbmsV1.h"
-#endif
-#include "fs_middle.h"
 #include "dpa10x.h"
+#include <string.h>
+#include "fs_middle.h"
 
 #ifdef CPU_MK64FN1M0VMD12
 static unsigned int numInfoAddrLen;
 #endif
 static FSMID_POINT* tableMeasure = NULL;
-static unsigned int numMeasure;
+static unsigned int numMeasure = 0;
 
 static LOG_EXTREME *tableMaximum = NULL;
 static LOG_EXTREME *tableMinimum = NULL;
 
 
 static FSMID_POINT* tableFrozen = NULL;
-static unsigned int numFrozen;
+static unsigned int numFrozen = 0;
 
 #define MEASURE_CONFIG_SIG		0x5341454D	//"FSMD"
 #define FROZEN_CONFIG_SIG		0x4E5A5246	//"FRZN"
@@ -40,7 +38,7 @@ const char *db_GetTerminalID()
 }
 #endif
 
-void FSMID_InitConfig()
+int FSMID_InitConfig()
 {
 	int bChanged = 0;
 	int i, j;
@@ -57,6 +55,7 @@ void FSMID_InitConfig()
 	#endif
 
 	pfrm = dpa101appl.pport->pfrm;
+	if(pfrm == NULL) return FSMIDR_ACCESS;
 	for (i = 0,numMeasure = 0; i < dpa101appl.pport->frmnum; i++, pfrm++)
 	{
 		if (pfrm->pcfg->frmtype == M_ME_NC_1)//仅处理浮点遥测帧
@@ -68,51 +67,56 @@ void FSMID_InitConfig()
 			numFrozen += pfrm->pntnum;
 		}
 	}
-
-	tableMaximum = fsmid_malloc(LOG_EXTREME,numMeasure);
-	memset(tableMaximum,0,sizeof(LOG_EXTREME)*numMeasure);
-	tableMinimum = fsmid_malloc(LOG_EXTREME,numMeasure);
-	memset(tableMinimum,0,sizeof(LOG_EXTREME)*numMeasure);
-	for(i = 0; i < numMeasure; i++)
+	if(numMeasure)
 	{
-		tableMaximum[i].pointIndex = i;
-		tableMaximum[i].type = 0;
-		tableMinimum[i].pointIndex = i;
-		tableMinimum[i].type = 1;
-	}
-
-	tableMeasure = fsmid_malloc(FSMID_POINT,numMeasure);
-	tableFrozen = fsmid_malloc(FSMID_POINT,numFrozen);
-	fsmid_assert(tableMeasure && tableFrozen,__FILE__,__LINE__);
-
-	pPoint = tableMeasure;
-	pfrm = dpa101appl.pport->pfrm;
-	for (i = 0; i < dpa101appl.pport->frmnum; i++, pfrm++)
-	{
-		if (pfrm->pcfg->frmtype == M_ME_NC_1)//仅处理浮点遥测帧
+		tableMaximum = fsmid_malloc(LOG_EXTREME,numMeasure);
+		memset(tableMaximum,0,sizeof(LOG_EXTREME)*numMeasure);
+		tableMinimum = fsmid_malloc(LOG_EXTREME,numMeasure);
+		memset(tableMinimum,0,sizeof(LOG_EXTREME)*numMeasure);
+		for(i = 0; i < numMeasure; i++)
 		{
-			inf = pfrm->pcfg->frminf;//起始信息对象
-			pMeCfg = (struDpa10xMe_Cfg *)pfrm->ppntcfg;//指向flash中的浮点遥测配置表
-			for (j = 0; j < pfrm->pntnum; j++, pMeCfg++, inf++,pPoint++)
+			tableMaximum[i].pointIndex = i;
+			tableMaximum[i].type = 0;
+			tableMinimum[i].pointIndex = i;
+			tableMinimum[i].type = 1;
+		}
+		tableMeasure = fsmid_malloc(FSMID_POINT,numMeasure);
+
+		pPoint = tableMeasure;
+		pfrm = dpa101appl.pport->pfrm;
+		for (i = 0; i < dpa101appl.pport->frmnum; i++, pfrm++)
+		{
+			if (pfrm->pcfg->frmtype == M_ME_NC_1)//仅处理浮点遥测帧
 			{
-				pPoint->information = inf;
-				pPoint->point = pMeCfg->syspnt;
+				inf = pfrm->pcfg->frminf;//起始信息对象
+				pMeCfg = (struDpa10xMe_Cfg *)pfrm->ppntcfg;//指向flash中的浮点遥测配置表
+				for (j = 0; j < pfrm->pntnum; j++, pMeCfg++, inf++,pPoint++)
+				{
+					pPoint->information = inf;
+					pPoint->point = pMeCfg->syspnt;
+				}
 			}
 		}
 	}
 
-	pPoint = tableFrozen;
-	pfrm = dpa101appl.pport->pfrm;
-	for (i = 0; i < dpa101appl.pport->frmnum; i++, pfrm++)
+	if(numFrozen)
 	{
-		if (pfrm->pcfg->frmtype == M_IT_NB_1)//仅处理浮点累积量
+		tableFrozen = fsmid_malloc(FSMID_POINT,numFrozen);
+		fsmid_assert(tableMeasure && tableFrozen,__FILE__,__LINE__);
+
+		pPoint = tableFrozen;
+		pfrm = dpa101appl.pport->pfrm;
+		for (i = 0; i < dpa101appl.pport->frmnum; i++, pfrm++)
 		{
-			inf = pfrm->pcfg->frminf;//起始信息对象
-			pItCfg = (struDpa10xIt_Cfg *)pfrm->ppntcfg;//指向flash中的浮点累积量配置表
-			for (j = 0; j < pfrm->pntnum; j++, pItCfg++, inf++,pPoint++)
+			if (pfrm->pcfg->frmtype == M_IT_NB_1)//仅处理浮点累积量
 			{
-				pPoint->information = inf;
-				pPoint->point = pItCfg->syspnt;
+				inf = pfrm->pcfg->frminf;//起始信息对象
+				pItCfg = (struDpa10xIt_Cfg *)pfrm->ppntcfg;//指向flash中的浮点累积量配置表
+				for (j = 0; j < pfrm->pntnum; j++, pItCfg++, inf++,pPoint++)
+				{
+					pPoint->information = inf;
+					pPoint->point = pItCfg->syspnt;
+				}
 			}
 		}
 	}
@@ -120,7 +124,7 @@ void FSMID_InitConfig()
 	if(numMeasure == 0 || numFrozen == 0)
 	{
 		fsmid_warning("No measure or frozen point.",__FILE__,__LINE__);
-		return;
+		return FSMIDR_BAD_ARGUMENT;
 	}
 
 	pConfig = fsmid_malloc(FSMID_CONFIG,1 + max(numMeasure,numFrozen)/2 + 1);
@@ -151,6 +155,7 @@ void FSMID_InitConfig()
 	}
 
 	fsmid_free(pConfig);
+	return FSMIDR_OK;
 }
 
 FSMID_POINT * const GetMeasureTable()
@@ -195,7 +200,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMaximum[index].time,t64,sizeof(SYS_TIME64));
 			tableMaximum[index].value = fValue;
-			//fsmid_info("MAX[%2d] = %7.3f\n",index,fValue);
+			//fsmid_info("MAX[%2d] = %7.3f\r\n",index,fValue);
 		}
 	}
 	else if(tableMaximum[index].value >= 0 && fValue < 0)
@@ -204,7 +209,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMaximum[index].time,t64,sizeof(SYS_TIME64));
 			tableMaximum[index].value = fValue;
-			//fsmid_info("MAX[%2d] = %7.3f\n",index,fValue);
+			//fsmid_info("MAX[%2d] = %7.3f\r\n",index,fValue);
 		}
 	}
 	else if(tableMaximum[index].value < 0 && fValue >= 0)
@@ -213,7 +218,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMaximum[index].time,t64,sizeof(SYS_TIME64));
 			tableMaximum[index].value = fValue;
-			//fsmid_info("MAX[%2d] = %7.3f\n",index,fValue);
+			//fsmid_info("MAX[%2d] = %7.3f\r\n",index,fValue);
 		}
 	}
 	else if(tableMaximum[index].value < 0 && fValue < 0)
@@ -222,7 +227,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMaximum[index].time,t64,sizeof(SYS_TIME64));
 			tableMaximum[index].value = fValue;
-			//fsmid_info("MAX[%2d] = %7.3f\n",index,fValue);
+			//fsmid_info("MAX[%2d] = %7.3f\r\n",index,fValue);
 		}
 	}
 
@@ -232,7 +237,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMinimum[index].time,t64,sizeof(SYS_TIME64));
 			tableMinimum[index].value = fValue;
-			//fsmid_info("MIN[%2d] = %7.3f\n",index,fValue);
+			//fsmid_info("MIN[%2d] = %7.3f\r\n",index,fValue);
 		}
 	}
 	else if(tableMinimum[index].value >= 0 && fValue < 0)
@@ -241,7 +246,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMinimum[index].time,t64,sizeof(SYS_TIME64));
 			tableMinimum[index].value = fValue;
-			//fsmid_info("MIN[%2d] = %7.3f\n",index,fValue);
+			//fsmid_info("MIN[%2d] = %7.3f\r\n",index,fValue);
 		}
 	}
 	else if(tableMinimum[index].value < 0 && fValue >= 0)
@@ -250,7 +255,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMinimum[index].time,t64,sizeof(SYS_TIME64));
 			tableMinimum[index].value = fValue;
-			//fsmid_info("MIN[%2d] = %7.3f\n",index,fValue);
+			//fsmid_info("MIN[%2d] = %7.3f\r\n",index,fValue);
 		}
 	}
 	else if(tableMinimum[index].value < 0 && fValue < 0)
@@ -259,7 +264,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 		{
 			memcpy(&tableMinimum[index].time,t64,sizeof(SYS_TIME64));
 			tableMinimum[index].value = fValue;
-			//fsmid_info("MIN[%2d] = %7.3f\n",index,fValue);
+			//fsmid_info("MIN[%2d] = %7.3f\r\n",index,fValue);
 		}
 	}
 }

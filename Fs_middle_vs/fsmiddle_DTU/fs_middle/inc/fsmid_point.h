@@ -44,6 +44,22 @@ typedef struct __log_fix_frozen{
 	unsigned int numUnit;
 	float value[0];
 }LOG_FIXPT,LOG_FROZRN;
+
+typedef struct __log_cfg{
+	SYS_TIME64 timeStart;
+	SYS_TIME64 timeTrigger;
+	unsigned int channelOffset;
+	float dcOffset;
+	float acGain;
+	float frequency;
+}LOG_CFG;
+
+typedef struct __log_dat{
+	unsigned int pointIndex;
+	unsigned int pointTime;
+	unsigned short channelValue[8];
+}LOG_DAT;
+
 /*-----------------------------------------------------------------------------------------------*/
 typedef struct __struct_fsmid_point{
 	unsigned int information;

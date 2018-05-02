@@ -4,7 +4,7 @@
 #include "fs_middle.h"
 
 #undef  _FSLOG_INFO_MSG_
-//#define _FSLOG_INFO_MSG_
+#define _FSLOG_INFO_MSG_
 #if defined(_FSLOG_INFO_MSG_)
 #define FSLOG_INFO_MSG(fmt,...)       fsmid_info(fmt, ##__VA_ARGS__)
 #else
@@ -210,6 +210,7 @@ void FSLOG_Init(const FSLOG_INTERFACE *pInterface)
 	#ifdef CPU_MK64FN1M0VMD12
 	vSemaphoreCreateBinary(fsmid_mutex); 
 	#endif
+	FSLOG_INFO_MSG("\r\nFSMID_FIX_LOG to Block %d. FSMID_DYNAMIC_LOG from Block %d\r\n",FIX_END_BLOCK, DYNAMIC_START_BLOCK);
 }
 
 const FSLOG_INTERFACE *FSLOG_GetRegistedInterface()
@@ -287,6 +288,7 @@ FSLOG* FSLOG_Open( const char* pName, const FSLOG_FUNCTION * pFunction, const FS
 	{
 		pLog->indexFirst = 0;
 		pLog->indexLast = 0;
+		FSLOG_INFO_MSG("[FSOPEN] \"%s\". Placed: 0x%08X, ID:%d, %d unit.\r\n",pLog->name,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
 	}
 	else
 	{
@@ -311,7 +313,10 @@ FSLOG* FSLOG_Open( const char* pName, const FSLOG_FUNCTION * pFunction, const FS
 			}
 			
 			fsmid_free(data);
-			FSLOG_INFO_MSG("[FSOPEN] \"%s\". Create:%02d-%02d-%02d. Placed: 0x%08X, ID:%d, %d unit.\r\n",pLog->name,tm64->year,tm64->mon,tm64->day,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
+			FSLOG_INFO_MSG("[FSOPEN] \"%s\". Placed: 0x%08X, ID:%d, %d unit.\r\n",pLog->name,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);
+			FSLOG_INFO_MSG("         Create: 20%02d-%02d-%02d %02d:%02d:%02d. Format: %d Bytes\r\n",pLog->timeCreate.year,pLog->timeCreate.mon,pLog->timeCreate.day,
+				pLog->timeCreate.hour,pLog->timeCreate.min,pLog->timeCreate.sec,
+				pLog->formatedSize);
 		}
 		else
 			FSLOG_INFO_MSG("[FSOPEN] \"%s\". Placed: 0x%08X, ID:%d, %d unit.\r\n",pLog->name,pLog->pInformation->baseAddress,pLog->pointerId,pLog->unitNumber);

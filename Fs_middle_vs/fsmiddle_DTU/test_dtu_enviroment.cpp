@@ -465,6 +465,7 @@ DWORD WINAPI threadDebugCmdLine(LPVOID lpParameter)
 	char cmd[MAX_PATH];
 	unsigned int i,nItem = 0;
 	FSLOG *pLog;
+	Sleep(1000);
 	while(1)
 	{
 		printf("input command code:");

@@ -14,7 +14,7 @@
 #include "fs_middle.h"
 
 #undef  _FSLOG_INFO_MSG_
-//#define _FSLOG_INFO_MSG_
+#define _FSLOG_INFO_MSG_
 #if defined(_FSLOG_INFO_MSG_)
 #define FSLOG_INFO_MSG(fmt,...)       fsmid_info(fmt, ##__VA_ARGS__)
 #else
@@ -37,10 +37,19 @@ FSLOG *logUlog;
 FSLOG *logSoe;
 FSLOG *logCo;
 
+#define TEMP_CFG_NAME		"TEMP/BAYxx_xxxx_xxxxxxxx_xxxxxx_xxx.cfg"
+#define TEMP_DAT_NAME		"TEMP/BAYxx_xxxx_xxxxxxxx_xxxxxx_xxx.dat"
 #define TEMP_EXV_NAME		"TEMP/EXVxxxxxxxx.msg"
 #define TEMP_FIXPT_NAME		"TEMP/FIXPTxxxxxxxx.msg"
 #define TEMP_FRZ_NAME		"TEMP/FRZxxxxxxxx.msg"
 
+FSLOG *logCfgTable[NUMBER_OF_CFG];
+unsigned int nCfg = 0;
+FSLOG **logCfg = NULL;
+
+FSLOG *logDatTable[NUMBER_OF_DAT];
+unsigned int nDat = 0;
+FSLOG **logDat = NULL;
 
 FSLOG *logExtremeTable[NUMBER_OF_EXV];
 unsigned int nExtreme = 0;
@@ -93,8 +102,14 @@ void FSMID_FormatLogName(FSLOG *pLog, const char* nameLowCase, const SYS_TIME64 
 		i++;
 	}
 	nameUpCase[i] = 0;
+	FORMAT_LOG_NAME(pLog,nameUpCase,nameLowCase,tm64);
+	FSLOG_INFO_MSG("[FSRENAME] to \"%s\".\r\n",pLog->name);
+}
+
+void FSMID_FormatWaveName(FSLOG *pLog, const char* nameExt, const SYS_TIME64 *tm64)
+{
 	FSLOG_INFO_MSG("[FSRENAME] from:\"%s\" to ",pLog->name);
-	FORMAT_NAME(pLog,nameUpCase,nameLowCase,tm64);
+	FORMAT_WAVE_NAME(pLog,nameExt,0,0,tm64);//??
 	FSLOG_INFO_MSG("%s\".\r\n",pLog->name);
 }
 
@@ -103,7 +118,6 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 	unsigned int i, address = DYNAMIC_START_BLOCK*FLASH_BLOCK_SIZE;
 	FSLOG_INFORMATION *pInfo;
 	FSLOG **ppLog;
-	SYS_TIME64 sysTime;
 
 	logFirmware = FSLOG_Open("SYSTEM/FIRMWARE.BIN", NULL,			&infoFwUpdate, FSLOG_ATTR_OTP|FSLOG_ATTR_DATA_ONLY);
 
@@ -134,6 +148,52 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 	fsmid_assert(logCo,__FILE__,__LINE__);
 #endif
 
+#if (defined(ENABLE_MODULE_CFG_DAT) || defined(ENABLE_MODULE_ALL))
+	for(i = 0, nCfg = 0, ppLog = logCfgTable; i < NUMBER_OF_CFG; i++, ppLog++)
+	{
+		*ppLog = FSLOG_Open(TEMP_CFG_NAME,&funcLogCfg,&infoLogCfg[i],FSLOG_ATTR_OPEN_EXIST|FSLOG_ATTR_OTP);
+		fsmid_assert(*ppLog,__FILE__,__LINE__);
+		if((*ppLog)->timeCreate.year != 0)
+		{
+			FSMID_FormatWaveName(*ppLog,"cfg",&(*ppLog)->timeCreate);
+			nCfg++;
+		}
+		else if(!logCfg)
+			logCfg = ppLog;
+	}
+	if(!logCfg)
+	{
+		logCfg = logCfgTable;
+		for(i = 1, ppLog = logCfgTable + 1; i < NUMBER_OF_CFG; i++,ppLog++)
+		{
+			if(systimeCmp(&(*logCfg)->timeCreate,&(*ppLog)->timeCreate) > 0)
+				logCfg = ppLog;
+		}
+	}
+
+	for(i = 0, nDat = 0, ppLog = logDatTable; i < NUMBER_OF_DAT; i++, ppLog++)
+	{
+		*ppLog = FSLOG_Open(TEMP_DAT_NAME,&funcLogDat,&infoLogDat[i],FSLOG_ATTR_OPEN_EXIST|FSLOG_ATTR_OTP);
+		fsmid_assert(*ppLog,__FILE__,__LINE__);
+		if((*ppLog)->timeCreate.year != 0)
+		{
+			FSMID_FormatWaveName(*ppLog,"dat",&(*ppLog)->timeCreate);
+			nDat++;
+		}
+		else if(!logDat)
+			logDat = ppLog;
+	}
+	if(!logDat)
+	{
+		logDat = logDatTable;
+		for(i = 1, ppLog = logDatTable + 1; i < NUMBER_OF_DAT; i++,ppLog++)
+		{
+			if(systimeCmp(&(*logDat)->timeCreate,&(*ppLog)->timeCreate) > 0)
+				logDat = ppLog;
+		}
+	}
+#endif
+
 #if (defined(ENABLE_MODULE_EXV) || defined(ENABLE_MODULE_ALL))
 	if(GetMeasureCount())
 	{
@@ -145,13 +205,18 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 			pInfo->unitCount = GetMeasureCount()*2+3;
 			pInfo->blockNumber = FSLOG_CalcBlockNumber(pInfo->unitSize,pInfo->blockSize,pInfo->unitCount,true);
 			fsmid_assert(address + pInfo->blockNumber * pInfo->blockSize < FLASH_MEMORY_SIZE,__FILE__,__LINE__);
-			logExtremeTable[i] = FSLOG_Open(TEMP_EXV_NAME,&funcLogExtreme,pInfo,FSLOG_ATTR_OPEN_EXIST|FSLOG_ATTR_OTP);
+			*ppLog = FSLOG_Open(TEMP_EXV_NAME,&funcLogExtreme,pInfo,FSLOG_ATTR_OPEN_EXIST|FSLOG_ATTR_OTP);
 			fsmid_assert(*ppLog,__FILE__,__LINE__);
 			address += pInfo->blockNumber * pInfo->blockSize;
 			if((*ppLog)->timeCreate.year != 0)
 			{
 				FSMID_FormatLogName(*ppLog,"exv",&(*ppLog)->timeCreate);
 				nExtreme++;
+				if(systimeSameDay(&(*ppLog)->timeCreate,tm64))
+				{
+					fsmid_assert(!logExtreme,__FILE__,__LINE__);
+					logExtreme = ppLog;
+				}
 			}
 			else if(!logExtreme)
 				logExtreme = ppLog;
@@ -161,7 +226,7 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 			logExtreme = logExtremeTable;
 			for(i = 1, ppLog = logExtremeTable + 1; i < NUMBER_OF_EXV; i++,ppLog++)
 			{
-				if(strcmp((*logExtreme)->name,(*ppLog)->name) < 0)
+				if(systimeCmp(&(*logExtreme)->timeCreate,&(*ppLog)->timeCreate) > 0)
 					logExtreme = ppLog;
 			}
 		}
@@ -182,7 +247,7 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 			pInfo->unitSize = sizeof(LOG_FIXPT) + sizeof(float)*GetMeasureCount();
 			//pInfo->unitCount = 96;
 			fsmid_assert(address + pInfo->blockNumber * pInfo->blockSize < FLASH_MEMORY_SIZE,__FILE__,__LINE__);
-			logFixptTable[i] = FSLOG_Open(TEMP_FIXPT_NAME,&funcLogFixpt,pInfo,FSLOG_ATTR_OPEN_EXIST|FSLOG_ATTR_OTP);
+			*ppLog = FSLOG_Open(TEMP_FIXPT_NAME,&funcLogFixpt,pInfo,FSLOG_ATTR_OPEN_EXIST|FSLOG_ATTR_OTP);
 			fsmid_assert(ppLog,__FILE__,__LINE__);
 			address += pInfo->blockNumber * pInfo->blockSize;
 			if((*ppLog)->timeCreate.year != 0)
@@ -190,7 +255,7 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 				FSMID_FormatLogName(*ppLog,"fixpt",&(*ppLog)->timeCreate);
 				nFixpt++;
 				//select current day file
-				if(systimeSameDay(&sysTime,tm64))
+				if(systimeSameDay(&(*ppLog)->timeCreate,tm64))
 				{
 					fsmid_assert(!logFixpt,__FILE__,__LINE__);
 					logFixpt = ppLog;
@@ -208,12 +273,12 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 				nFixpt++;
 			}
 		}
-		else
+		if(!logFixpt)
 		{
-			logFixpt = logFixptTable;
-			for(i = 1, ppLog = logFixptTable + 1; i < NUMBER_OF_FRZ; i++,ppLog++)
+			logFixpt = logExtremeTable;
+			for(i = 1, ppLog = logExtremeTable + 1; i < NUMBER_OF_FIXPT; i++,ppLog++)
 			{
-				if(strcmp((*logFixpt)->name,(*ppLog)->name) < 0)
+				if(systimeCmp(&(*logFixpt)->timeCreate,&(*ppLog)->timeCreate) > 0)
 					logFixpt = ppLog;
 			}
 		}
@@ -234,7 +299,7 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 			pInfo->unitSize = sizeof(LOG_FROZRN) + sizeof(float)*GetFrozenCount();
 			//pInfo->unitCount = 97;
 			fsmid_assert(address + pInfo->blockNumber * pInfo->blockSize < FLASH_MEMORY_SIZE,__FILE__,__LINE__);
-			logFrozenTable[i] = FSLOG_Open(TEMP_FRZ_NAME,&funcLogFrozen,pInfo,FSLOG_ATTR_OPEN_EXIST|FSLOG_ATTR_OTP);
+			*ppLog = FSLOG_Open(TEMP_FRZ_NAME,&funcLogFrozen,pInfo,FSLOG_ATTR_OPEN_EXIST|FSLOG_ATTR_OTP);
 			fsmid_assert(ppLog,__FILE__,__LINE__);
 			address += pInfo->blockNumber * pInfo->blockSize;
 			if((*ppLog)->timeCreate.year != 0)
@@ -242,7 +307,7 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 				FSMID_FormatLogName(*ppLog,"frz",&(*ppLog)->timeCreate);
 				nFrozen++;
 				//select current day file
-				if(systimeSameDay(&sysTime,tm64))
+				if(systimeSameDay(&(*ppLog)->timeCreate,tm64))
 				{
 					fsmid_assert(!logFrozen,__FILE__,__LINE__);
 					logFrozen = ppLog;
@@ -251,21 +316,12 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 			else if(!logFrozen)
 				logFrozen = ppLog;
 		}
-		if(logFrozen)
-		{
-			if(strcmp((*logFrozen)->name,TEMP_FRZ_NAME)==0)
-			{
-				FSMID_FormatLogName(*logFrozen,"frz",tm64);
-				memcpy(&(*logFrozen)->timeCreate,tm64,sizeof(SYS_TIME64));
-				nFrozen++;
-			}
-		}
-		else
+		if(!logFrozen)
 		{
 			logFrozen = logFrozenTable;
 			for(i = 1, ppLog = logFrozenTable + 1; i < NUMBER_OF_FRZ; i++,ppLog++)
 			{
-				if(strcmp((*logFrozen)->name,(*ppLog)->name) < 0)
+				if(systimeCmp(&(*logFrozen)->timeCreate,&(*ppLog)->timeCreate) > 0)
 					logFrozen = ppLog;
 			}
 		}

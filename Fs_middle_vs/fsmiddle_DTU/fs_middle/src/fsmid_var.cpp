@@ -32,6 +32,25 @@ static int format_header_co(char *buf, FSLOG* pLog)
 	return len;
 }
 
+static int format_header_cfg(char *buf, FSLOG* pLog)
+{
+#define BOARD_STR_DEVTYP	"aabbcc"
+	int len;
+	if(buf)
+	{
+		len = sprintf(buf,"%s,%s,1999\r\n8,8A\r\n",BOARD_STR_DEVTYP,LOG_FILE_VERSION);
+	}
+	else
+		len = 24 + 1 + strlen(LOG_FILE_VERSION) + 1 + 4 + 2 + 1 + 1 + 2 + 2;
+	return len;
+
+}
+
+static int format_header_dat(char *buf, FSLOG* pLog)
+{
+	return 0;
+}
+
 static int format_header_exv(char *buf, FSLOG* pLog)
 {
 	int len;
@@ -151,6 +170,52 @@ static int format_co(char *buf, const void* data)
 		len = (db_GetInfoAddressLength() + 1 + 4 + 2 + 23 + 2)*2;
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
+}
+
+static int format_cfg(char *buf, const void* data)
+{
+	const LOG_DAT *log = (const LOG_DAT *)data;
+	unsigned char *ptr = (unsigned char *)data;
+	int i;
+
+	*(unsigned int *)ptr = log->pointIndex;
+	ptr+=4;
+	*(unsigned int *)ptr = log->pointTime;
+	ptr+=4;
+
+	for(i = 0; i < 8;i++)
+	{
+		*(unsigned short *)ptr = log->channelValue[i]; ptr+=2;
+	}
+	return (8 + 2 * 8);
+
+}
+
+static int format_dat(char *buf, const void* data)
+{
+	// 	const char *cstrTrdOperate[] = {"分","合"};
+	// 	int len;
+	// 	char strInfoAddr[4];
+	// 	const LOG_CO *log = (const LOG_CO *)data;
+	// 
+	// 	if(buf)
+	// 	{
+	// 		format_info_addr_len(strInfoAddr,log->information);
+	// 		len = sprintf(buf,"%s,选择,%s,20%02d-%02d-%02d %02d:%02d:%02d.%03d\r\n%s,执行,%s,20%02d-%02d-%02d %02d:%02d:%02d.%03d\r\n",
+	// 			strInfoAddr,cstrTrdOperate[log->value?1:0],
+	// 			log->time.year,log->time.mon,log->time.day,
+	// 			log->time.hour,log->time.min,log->time.sec,
+	// 			log->time.msec,
+	// 			strInfoAddr,cstrTrdOperate[log->value?1:0],
+	// 			log->time.year,log->time.mon,log->time.day,
+	// 			log->time.hour,log->time.min,log->time.sec,
+	// 			log->time.msec);
+	// 	}
+	// 	else
+	// 		len = (db_GetInfoAddressLength() + 1 + 4 + 2 + 23 + 2)*2;
+	// 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
+	// 	return len;
+	return 0;
 }
 
 static int format_extreme(char *buf, const void* data)
@@ -287,6 +352,23 @@ const FSLOG_FUNCTION funcLogCo = {
 	get_log_time,
 };
 
+const FSLOG_FUNCTION funcLogCfg = {
+	// 	write_flash,
+	// 	read_flash,
+	// 	erase_flash,
+	format_header_cfg,
+	format_cfg,
+	get_log_time,
+};
+const FSLOG_FUNCTION funcLogDat = {
+	// 	write_flash,
+	// 	read_flash,
+	// 	erase_flash,
+	format_header_dat,
+	format_dat,
+	get_log_time,
+};
+
 const FSLOG_FUNCTION funcLogExtreme = {
 // 	write_flash,
 // 	read_flash,
@@ -384,6 +466,82 @@ const FSLOG_INFORMATION infoLogCo= {
 	FLASH_BLOCK_SIZE,
 	sizeof(LOG_CO),
 	NUM_POINT_LOG_CO,
+};
+
+const FSLOG_INFORMATION infoLogCfg[NUMBER_OF_CFG] = {
+	{
+		FLASH_BLOCK_SIZE * (START_BLOCK_LOG_CFG + 0*NUM_BLOCK_LOG_CFG),
+		NUM_BLOCK_LOG_CFG,
+		FLASH_BLOCK_SIZE,
+		sizeof(LOG_CFG),
+		NUM_POINT_LOG_CFG,
+	},
+	{
+		FLASH_BLOCK_SIZE * (START_BLOCK_LOG_CFG + 1*NUM_BLOCK_LOG_CFG),
+		NUM_BLOCK_LOG_CFG,
+		FLASH_BLOCK_SIZE,
+		sizeof(LOG_CFG),
+		NUM_POINT_LOG_CFG,
+	},
+	{
+		FLASH_BLOCK_SIZE * (START_BLOCK_LOG_CFG + 2*NUM_BLOCK_LOG_CFG),
+		NUM_BLOCK_LOG_CFG,
+		FLASH_BLOCK_SIZE,
+		sizeof(LOG_CFG),
+		NUM_POINT_LOG_CFG,
+	},
+	{
+		FLASH_BLOCK_SIZE * (START_BLOCK_LOG_CFG + 3*NUM_BLOCK_LOG_CFG),
+		NUM_BLOCK_LOG_CFG,
+		FLASH_BLOCK_SIZE,
+		sizeof(LOG_CFG),
+		NUM_POINT_LOG_CFG,
+	},
+	{
+		FLASH_BLOCK_SIZE * (START_BLOCK_LOG_CFG + 4*NUM_BLOCK_LOG_CFG),
+		NUM_BLOCK_LOG_CFG,
+		FLASH_BLOCK_SIZE,
+		sizeof(LOG_CFG),
+		NUM_POINT_LOG_CFG,
+	},
+};
+
+const FSLOG_INFORMATION infoLogDat[NUMBER_OF_DAT] = {
+	{
+		FLASH_BLOCK_SIZE * (START_BLOCK_LOG_DAT + 0*NUM_BLOCK_LOG_DAT),
+		NUM_BLOCK_LOG_DAT,
+		FLASH_BLOCK_SIZE,
+		sizeof(LOG_DAT),
+		NUM_POINT_LOG_DAT,
+	},
+	{
+		FLASH_BLOCK_SIZE * (START_BLOCK_LOG_DAT + 1*NUM_BLOCK_LOG_DAT),
+		NUM_BLOCK_LOG_DAT,
+		FLASH_BLOCK_SIZE,
+		sizeof(LOG_DAT),
+		NUM_POINT_LOG_DAT,
+	},
+	{
+		FLASH_BLOCK_SIZE * (START_BLOCK_LOG_DAT + 2*NUM_BLOCK_LOG_DAT),
+		NUM_BLOCK_LOG_DAT,
+		FLASH_BLOCK_SIZE,
+		sizeof(LOG_DAT),
+		NUM_POINT_LOG_DAT,
+	},
+	{
+		FLASH_BLOCK_SIZE * (START_BLOCK_LOG_DAT + 3*NUM_BLOCK_LOG_DAT),
+		NUM_BLOCK_LOG_DAT,
+		FLASH_BLOCK_SIZE,
+		sizeof(LOG_DAT),
+		NUM_POINT_LOG_DAT,
+	},
+	{
+		FLASH_BLOCK_SIZE * (START_BLOCK_LOG_DAT + 4*NUM_BLOCK_LOG_DAT),
+		NUM_BLOCK_LOG_DAT,
+		FLASH_BLOCK_SIZE,
+		sizeof(LOG_DAT),
+		NUM_POINT_LOG_DAT,
+	},
 };
 
 

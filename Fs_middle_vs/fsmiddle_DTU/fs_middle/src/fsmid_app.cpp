@@ -368,12 +368,17 @@ static void FSMID_SoeApp(const SYS_TIME64 *t64)
 		//包括soe trd prtlog
 		FSLOG_LockWrite(logRawSoe,pEvent);
 
-
 		//2.save soe for 101
 		//包括soe trd ulog, 仅soe有双点处理, ulog不需要search到inf,直接保存
 		//这里仅以soe为例，以soe1为临时变量(struSoeLog soe1)
 		ppntcfg = dpa10x_SearchSyspntInFrms(dpa101appl.pport, pEvent->pnt, TypeidDi, &frm, &pnt, &otherpnt, &inf);//查找系统点对应的点配置等，并得到inf
 
+#ifdef VS_SIMULATE
+		memcpy(&soe.time,&pEvent->time,sizeof(soe.time));
+		soe.information = inf;
+		soe.value = inf^0xFF;//把单点SIQ做成双点DIQ
+		FSLOG_LockWrite(logSoe,&soe);
+#else
 		if (ppntcfg == NULL)//没找到，说明点不在101配置中
 		{
 			if(flag)
@@ -431,6 +436,7 @@ static void FSMID_SoeApp(const SYS_TIME64 *t64)
 			soe.value = (db_GetDi(pSpCfg->syspnt)&1)<<1;//把单点SIQ做成双点DIQ
 			FSLOG_LockWrite(logSoe,&soe);
 		}
+#endif
 	}
 
 	if(flag)
@@ -603,7 +609,7 @@ static void FSMID_SaveFixptLog(const SYS_TIME64 *tm64)
 		logFixpt = logFixptTable;
 
 // 	if((*logFixpt)->unitNumber != 96)
-// 		fsmid_warning("!FIXPT NUMBER",__FILE__,__LINE__);
+// 		fsmid_warning("!FIXPT NUMBER");
 
 	if((*logFixpt)->unitNumber)
 		FSLOG_Clear(*logFixpt);
@@ -672,7 +678,7 @@ void FSMID_Task(void *pvParameters)
 	
 		if(FIFTEEN_MINUTE_CONDITION(tm64))//15分钟处理一次数据
 		{
-			FSLOG_INFO_MSG("[TIME] Tick:20%02d-%02d-%02d %02d:%02d:%02d %03d\r\n",tm64.year,tm64.mon,tm64.day,tm64.hour,tm64.min,tm64.sec,tm64.msec);
+			//FSLOG_INFO_MSG("[TIME] Tick:20%02d-%02d-%02d %02d:%02d:%02d %03d\r\n",tm64.year,tm64.mon,tm64.day,tm64.hour,tm64.min,tm64.sec,tm64.msec);
 			if(DAILY_CONDITION(tm64)) //  0点生成新的文件
 			{
 				FSMID_SaveExtremeLog(&tm64);

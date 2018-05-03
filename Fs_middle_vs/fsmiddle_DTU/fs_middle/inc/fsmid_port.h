@@ -37,7 +37,7 @@ extern void test_free(void *);
 #define fsmid_free(ptr)				test_free(ptr)
 
 #define fsmid_assert(cond,func,line)		do{if(!(cond)){printf("[ASSERT] %s(%d).\r\n",func,line);while(1);}}while(0)
-#define fsmid_warning(str,func,line)		printf(str)//
+#define fsmid_warning(str,...)		do{printf("[WARNING]");printf(str);}while(0)//
 #define fsmid_info(s,...)					printf(s,##__VA_ARGS__)
 
 #define FSMID_MUTEX					HANDLE

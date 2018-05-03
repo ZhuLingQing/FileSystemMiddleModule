@@ -67,12 +67,12 @@ typedef struct __fslog{
 	unsigned int unitNumber;
 	unsigned int indexFirst;
 	unsigned int indexLast;
-	//unsigned int indexRead;
+	unsigned int indexRead;
 }FSLOG;
 
 typedef struct __fslog_function{
 	int (*format_header)(char *buf, struct __fslog* log);
-	int (*format_data)(char *buf, const void* data);
+	int (*format_data)(char *buf, const void* data, unsigned int index);
 	const SYS_TIME64 *(*time)(const void *data);
 }FSLOG_FUNCTION;
 

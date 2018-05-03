@@ -21,7 +21,7 @@ DWORD WINAPI threadProtocol(void *lpParameter)
 	int code;
 	uint16 cot;
 	uint32 id;
-	char pathname[MAX_PATH];
+	char pathname[MAX_PATH] = {0};
 
 	init_dtu_enviroment((char*)lpParameter);
 	srand((unsigned int)time(NULL));
@@ -137,7 +137,7 @@ void __file_read_call(const char *path, uint16 rcot)
 	uint8 _class;
 	uint8 rexbuf[MAX_PATH],texbuf[MAX_PATH],*pBuf;
 	uint16 rexlen,texlen;
-	uint8 i,checksum = 0;
+	uint32 i,checksum = 0;
 	FILE *freaded;
 
 	sprintf((char*)rexbuf, "%s\\read.txt",exeFullPath);

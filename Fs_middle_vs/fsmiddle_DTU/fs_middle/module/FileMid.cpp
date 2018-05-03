@@ -78,7 +78,7 @@ uint8 FileMid_101Requir(uint8 *rexbuf, uint16 rexlen, uint16 rcot)
 		}
 		pOperate++;
 	}
-	fsmid_warning("![WARNING] invalid opCode()\n",__FUNCTION__,__LINE__);
+	fsmid_warning("![WARNING] invalid opCode()\r\n");
 	return 0;
 }
 
@@ -86,7 +86,7 @@ uint8 FileMid_101Continue(uint8 *texbuf, uint16 *texlen, uint16 *tcot)
 {
 	if(!pOperate || !pOperate->f_continue)
 	{
-		fsmid_warning("INVALID continue.\r\n",__FUNCTION__,__LINE__);
+		fsmid_warning("INVALID continue.\r\n");
 		return 0;
 	}
 	*tcot = s_rcot+1;
@@ -145,11 +145,11 @@ static uint8 __file_read_activate(uint8 *rxbuf, uint16 len)
 	if(s_theFile)
 	{
 		filtedItemCount = FSLOG_GetUnitCount(s_theFile);
-		if(filtedItemCount > s_theFile->pInformation->unitCount)
-		{
-			s_offset += (filtedItemCount - s_theFile->pInformation->unitCount);
-			filtedItemCount = s_theFile->pInformation->unitCount;
-		}
+// 		if(filtedItemCount > s_theFile->pInformation->unitCount)
+// 		{
+// 			s_offset += (filtedItemCount - s_theFile->pInformation->unitCount);
+// 			filtedItemCount = s_theFile->pInformation->unitCount;
+// 		}
 	}
 	else
 		filtedItemCount = 0;

@@ -114,7 +114,7 @@ void glb_GetDateTime( SYS_TIME64 *tm64)
 
 uint8 db_GetDi( int16 pnt)
 {
-	return 0;
+	return pnt*10;
 }
 
 SOEEVENT *db_GetSoe(uint8 hand)

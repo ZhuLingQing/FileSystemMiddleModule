@@ -43,6 +43,8 @@ extern "C" {
 	extern const FSLOG_INFORMATION infoLogFixpt;
 	extern const FSLOG_INFORMATION infoLogFrozen;
 
+	extern const FSLOG_INFORMATION *pInfoTable[];
+
 #if (defined(WIN32) && !defined(__cplusplus))
 };
 #endif

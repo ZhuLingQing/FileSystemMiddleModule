@@ -134,7 +134,7 @@ static int __fslog_init(FSLOG *pLog)
 		{
 			__fslog_init_block(pLog,i,FSLOG_BIT_FILLING);
 			if(i)
-				fsmid_warning("!invalid signature",__FILE__,__LINE__);
+				fsmid_warning("!invalid signature");
 			pLog->unitNumber = i * pLog->unitPerBlock;
 			pLog->indexFirst = pLog->unitNumber;
 			pLog->indexLast = pLog->unitNumber;
@@ -145,7 +145,7 @@ static int __fslog_init(FSLOG *pLog)
 		else if(header.signature == FSLOG_FFFF_SIGNATURE)
 		{
 			if(i)
-				fsmid_warning("!invalid signature",__FILE__,__LINE__);
+				fsmid_warning("!invalid signature");
 			__fslog_init_block(pLog,i,FSLOG_BIT_FILLING);
 			pLog->unitNumber = i * pLog->unitPerBlock;
 			pLog->indexFirst = pLog->unitNumber;
@@ -176,7 +176,14 @@ static int __fslog_plus_write_counter(FSLOG* pLog)
 	header.pointerId = pLog->pointerId;
 	number2bitmap((num?num:pLog->unitPerBlock),header.counter,sizeof(header.counter));
 	fsmid_assert(!log_write(address,&header,sizeof(header)),__FILE__,__LINE__);
-	pLog->unitNumber++;
+	if(pLog->unitNumber < pLog->pInformation->unitCount)
+		pLog->unitNumber++;
+	else
+	{
+		pLog->indexRead++;
+		if(pLog->indexRead >= pLog->maxUnitCount)
+			pLog->indexRead = 0;
+	}
 	pLog->indexLast++;
 	if(!num)
 	{
@@ -296,6 +303,14 @@ FSLOG* FSLOG_Open( const char* pName, const FSLOG_FUNCTION * pFunction, const FS
 		pLog->indexFirst = -1;
 		pLog->indexLast = -1;
 		__fslog_init(pLog);
+		pLog->indexRead = pLog->indexFirst;
+		if(pLog->unitNumber > pLog->pInformation->unitCount)
+		{
+			pLog->indexRead += pLog->unitNumber - pLog->pInformation->unitCount;
+			if(pLog->indexRead >= pLog->maxUnitCount)
+				pLog->indexRead -= pLog->maxUnitCount;
+			pLog->unitNumber = pLog->pInformation->unitCount;
+		}
 
 		if(pLog->unitNumber && pFunction &&pFunction->time)
 		{
@@ -309,7 +324,7 @@ FSLOG* FSLOG_Open( const char* pName, const FSLOG_FUNCTION * pFunction, const FS
 			for( i = 0; i < min(pLog->pInformation->unitCount,pLog->unitNumber); i++ )
 			{
 				FSLOG_ReadData(pLog,i,data);
-				pLog->formatedSize += pFunction->format_data(NULL,data);
+				pLog->formatedSize += pFunction->format_data(NULL,data,i);
 			}
 			
 			fsmid_free(data);
@@ -337,10 +352,13 @@ int FSLOG_Write(FSLOG *pLog, const void* data)
 	//write data into flash
 	address = __fslog_index2address(pLog->indexLast);
 	fsmid_assert(!log_write(address,data,pLog->pInformation->unitSize),__FILE__,__LINE__);
-	if(pLog->pFunction && pLog->unitNumber < pLog->pInformation->unitCount)
-		pLog->formatedSize += pLog->pFunction->format_data(NULL,data);
-	else
-		pLog->formatedSize += pLog->pInformation->unitSize;
+	if(pLog->unitNumber < pLog->pInformation->unitCount)
+	{
+		if(pLog->pFunction)
+			pLog->formatedSize += pLog->pFunction->format_data(NULL,data,pLog->unitNumber - 1);
+		else
+			pLog->formatedSize += pLog->pInformation->unitSize;
+	}
 
 	//plus counter, if to new block
 	if(__fslog_plus_write_counter(pLog))
@@ -355,7 +373,7 @@ int FSLOG_Write(FSLOG *pLog, const void* data)
 				pLog->indexFirst -= pLog->maxUnitCount;
 			pLog->unitNumber -= pLog->unitPerBlock;
 // 			if(pLog->pFunction)
-// 				pLog->formatedSize -= pLog->pFunction->format_data(NULL,0) * pLog->unitPerBlock;
+// 				pLog->formatedSize -= pLog->pFunction->format_data(NULL,0,-1) * pLog->unitPerBlock;
 // 			else
 // 				pLog->formatedSize -= pLog->pInformation->unitSize * pLog->unitPerBlock;
 		}
@@ -403,7 +421,7 @@ int FSLOG_ReadData(FSLOG *pLog, unsigned int index, void* data)
 	if(index >= pLog->unitNumber)
 		return FSMIDR_BAD_ARGUMENT;
 
-	index += pLog->indexFirst;
+	index += pLog->indexRead;
 	if(index >= pLog->maxUnitCount)
 		index -= pLog->maxUnitCount;
 
@@ -444,7 +462,7 @@ int FSLOG_ReadFmt(FSLOG *pLog, unsigned int index, char *buf)
 	}
 
 	if(pLog->pFunction)
-		len = pLog->pFunction->format_data(buf,data);
+		len = pLog->pFunction->format_data(buf,data,index);
 	else
 	{
 		len = FSLOG_GetUnitSize(pLog);

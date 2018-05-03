@@ -18,12 +18,19 @@ static unsigned int numFrozen = 0;
 
 #define MEASURE_CONFIG_SIG		0x5341454D	//"FSMD"
 #define FROZEN_CONFIG_SIG		0x4E5A5246	//"FRZN"
+#define INFORMATION_CONFIG_SIG	0x4F464E49	//"INFO"
 
-typedef struct __st_fsmid_config{
+typedef struct __st_fsmid_config_point{
 	unsigned int signature;
 	unsigned int number;
 	FSMID_POINT point[0];
-}FSMID_CONFIG;
+}FSMID_CONFIG_POINT;
+
+typedef struct __st_fsmid_config_information{
+	unsigned int signature;
+	unsigned int number;
+	FSLOG_INFORMATION information[0];
+}FSMID_CONFIG_INFORMATION;
 
 #define START_ADDRESS_CONFIG		(START_BLOCK_CONFIG*FLASH_BLOCK_SIZE)
 
@@ -40,7 +47,6 @@ const char *db_GetTerminalID()
 
 int FSMID_InitConfig()
 {
-	int bChanged = 0;
 	int i, j;
 	struDpa10xFrm *pfrm;
 	void *ppntcfg = NULL;
@@ -48,7 +54,9 @@ int FSMID_InitConfig()
 	struDpa10xIt_Cfg *pItCfg;
 	uint32 inf;
 	FSMID_POINT *pPoint;
-	FSMID_CONFIG *pConfig;
+	FSMID_CONFIG_POINT *pConfigPoint;
+	FSMID_CONFIG_INFORMATION *pConfigInformation;
+	unsigned int numInformation = 0;
 
 	#ifdef CPU_MK64FN1M0VMD12
 	numInfoAddrLen = (unsigned int)dpa101appl.pcfg->portcfg.inflen;
@@ -123,38 +131,71 @@ int FSMID_InitConfig()
 
 	if(numMeasure == 0 || numFrozen == 0)
 	{
-		fsmid_warning("No measure or frozen point.",__FILE__,__LINE__);
+		fsmid_warning("No measure or frozen point.");
 		return FSMIDR_BAD_ARGUMENT;
 	}
+	while(pInfoTable[numInformation])
+		numInformation++;
 
-	pConfig = fsmid_malloc(FSMID_CONFIG,1 + max(numMeasure,numFrozen)/2 + 1);
-	FSLOG_GetRegistedInterface()->read(START_ADDRESS_CONFIG,pConfig,sizeof(FSMID_CONFIG) + numMeasure*4);
-	if(pConfig->signature != MEASURE_CONFIG_SIG || pConfig->number != numMeasure || memcmp(pConfig->point,tableMeasure,numMeasure*sizeof(int)))
+	pConfigPoint = (FSMID_CONFIG_POINT*)fsmid_malloc(unsigned char,sizeof(FSMID_CONFIG_POINT) + max(numMeasure,numFrozen)*sizeof(int));
+	pConfigInformation = (FSMID_CONFIG_INFORMATION*)fsmid_malloc(unsigned char,sizeof(FSMID_CONFIG_INFORMATION) + numInformation*sizeof(FSLOG_INFORMATION));
+
+	FSLOG_GetRegistedInterface()->read(START_ADDRESS_CONFIG+FLASH_BLOCK_SIZE*0,pConfigPoint,sizeof(FSMID_CONFIG_POINT) + numMeasure*4);
+	if(pConfigPoint->signature != MEASURE_CONFIG_SIG || pConfigPoint->number != numMeasure || memcmp(pConfigPoint->point,tableMeasure,numMeasure*sizeof(int)))
 	{
-		bChanged = 1;
+		fsmid_warning("Measure table changed.\r\n");
+		goto ChangeCondition;
 	}
-	FSLOG_GetRegistedInterface()->read(START_ADDRESS_CONFIG+FLASH_BLOCK_SIZE,pConfig,sizeof(FSMID_CONFIG) + numFrozen*4);
-	if(pConfig->signature != FROZEN_CONFIG_SIG || pConfig->number != numFrozen || memcmp(pConfig->point,tableFrozen,numFrozen*sizeof(int)))
+	FSLOG_GetRegistedInterface()->read(START_ADDRESS_CONFIG+FLASH_BLOCK_SIZE*1,pConfigPoint,sizeof(FSMID_CONFIG_POINT) + numFrozen*4);
+	if(pConfigPoint->signature != FROZEN_CONFIG_SIG || pConfigPoint->number != numFrozen || memcmp(pConfigPoint->point,tableFrozen,numFrozen*sizeof(int)))
 	{
-		bChanged = 1;
+		fsmid_warning("Frozen table changed.\r\n");
+		goto ChangeCondition;
 	}
-
-	if(bChanged)
+	FSLOG_GetRegistedInterface()->read(START_ADDRESS_CONFIG+FLASH_BLOCK_SIZE*2,pConfigInformation,sizeof(FSMID_CONFIG_INFORMATION) + numInformation*sizeof(FSLOG_INFORMATION));
+	if(pConfigInformation->signature == INFORMATION_CONFIG_SIG && pConfigInformation->number == numInformation)
 	{
-		FSLOG_GetRegistedInterface()->erase(START_ADDRESS_CONFIG,FLASH_MEMORY_SIZE - START_ADDRESS_CONFIG);
-
-		pConfig->signature = MEASURE_CONFIG_SIG;
-		pConfig->number = numMeasure;
-		memcpy(pConfig->point,tableMeasure,numMeasure*sizeof(int));
-		FSLOG_GetRegistedInterface()->write(START_ADDRESS_CONFIG,pConfig,sizeof(FSMID_CONFIG) + numMeasure*4);
-
-		pConfig->signature = FROZEN_CONFIG_SIG;
-		pConfig->number = numFrozen;
-		memcpy(pConfig->point,tableFrozen,numFrozen*sizeof(int));
-		FSLOG_GetRegistedInterface()->write(START_ADDRESS_CONFIG+FLASH_BLOCK_SIZE,pConfig,sizeof(FSMID_CONFIG) + numFrozen*4);
+		for(i = 0; i < numInformation; i++)
+		{
+			if(memcmp(&pConfigInformation->information[i],pInfoTable[i],sizeof(FSLOG_INFORMATION)) != 0)
+			{
+				fsmid_warning("Information table changed.\r\n");
+				goto ChangeCondition;
+			}
+		}
+	}
+	else
+	{
+		fsmid_warning("Information table changed.\r\n");
+		goto ChangeCondition;
 	}
 
-	fsmid_free(pConfig);
+	fsmid_info("Configuartion not changed.\r\n");
+	fsmid_free(pConfigPoint);
+	fsmid_free(pConfigInformation);
+	return FSMIDR_OK;
+
+ChangeCondition:
+	FSLOG_GetRegistedInterface()->erase(START_ADDRESS_CONFIG,FLASH_MEMORY_SIZE - START_ADDRESS_CONFIG);
+
+	pConfigPoint->signature = MEASURE_CONFIG_SIG;
+	pConfigPoint->number = numMeasure;
+	memcpy(pConfigPoint->point,tableMeasure,numMeasure*sizeof(int));
+	FSLOG_GetRegistedInterface()->write(START_ADDRESS_CONFIG+FLASH_BLOCK_SIZE*0,pConfigPoint,sizeof(FSMID_CONFIG_POINT) + numMeasure*sizeof(int));
+
+	pConfigPoint->signature = FROZEN_CONFIG_SIG;
+	pConfigPoint->number = numFrozen;
+	memcpy(pConfigPoint->point,tableFrozen,numFrozen*sizeof(int));
+	FSLOG_GetRegistedInterface()->write(START_ADDRESS_CONFIG+FLASH_BLOCK_SIZE*1,pConfigPoint,sizeof(FSMID_CONFIG_POINT) + numFrozen*sizeof(int));
+
+	pConfigInformation->signature = INFORMATION_CONFIG_SIG;
+	pConfigInformation->number = numInformation;
+	for(i = 0; i < numInformation; i++)
+		memcpy(&pConfigInformation->information[i],pInfoTable[i],sizeof(FSLOG_INFORMATION));
+	FSLOG_GetRegistedInterface()->write(START_ADDRESS_CONFIG+FLASH_BLOCK_SIZE*2,pConfigInformation,sizeof(FSMID_CONFIG_INFORMATION) + numInformation*sizeof(FSLOG_INFORMATION));
+
+	fsmid_free(pConfigPoint);
+	fsmid_free(pConfigInformation);
 	return FSMIDR_OK;
 }
 

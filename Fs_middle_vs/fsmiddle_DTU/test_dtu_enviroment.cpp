@@ -243,6 +243,9 @@ void __write_trd(/*FILE *file,*/ SYS_TIME64 *tm64, TRDEVENT *event)
 	fclose(file);
 }
 
+#define TRD_UPDATE_DUTY				10//sec
+#define SOE_UPDATE_DUTY				2//sec
+
 DWORD WINAPI signal_generator(LPVOID lpParameter)
 {
 	int i;
@@ -261,19 +264,15 @@ DWORD WINAPI signal_generator(LPVOID lpParameter)
 		glb_GetDateTime(&tm64);
 
 		WaitForSingleObject(test_lock,INFINITE);
-		if(tm64.sec < 2)
+// 		if(tm64.sec % SOE_UPDATE_DUTY < 2)
+// 			tickSoe = i_gen_rand(SOE_UPDATE_DUTY-1) + tm64.sec / SOE_UPDATE_DUTY * SOE_UPDATE_DUTY + 1;
+		tickSoe = tm64.sec;
+		if(tm64.sec % TRD_UPDATE_DUTY < 2)
 		{
-			tickSoe = i_gen_rand(29) + 1;
-			tickTrd = i_gen_rand(29) + 1;
-			tickUlog = i_gen_rand(29) + 1;
-			tickPrtlog = i_gen_rand(29) + 1;
-		}
-		else if(tm64.sec >= 30 && tm64.sec < 32)
-		{
-			tickSoe = i_gen_rand(29) + 31;
-			tickTrd = i_gen_rand(29) + 31;
-			tickUlog = i_gen_rand(29) + 31;
-			tickPrtlog = i_gen_rand(29) + 31;
+			tickTrd = i_gen_rand(TRD_UPDATE_DUTY-1) + tm64.sec / TRD_UPDATE_DUTY * TRD_UPDATE_DUTY + 1;
+			//printf("tickTrd = %d.\r\n",tickTrd);
+			tickUlog = i_gen_rand(TRD_UPDATE_DUTY-1) + tm64.sec / TRD_UPDATE_DUTY * TRD_UPDATE_DUTY + 1;
+			tickPrtlog = i_gen_rand(TRD_UPDATE_DUTY-1) + tm64.sec / TRD_UPDATE_DUTY * TRD_UPDATE_DUTY + 1;
 		}
 
 #if (defined(ENABLE_MODULE_EXV) || defined(ENABLE_MODULE_FIXPT) || defined(ENABLE_MODULE_ALL))
@@ -346,7 +345,7 @@ DWORD WINAPI signal_generator(LPVOID lpParameter)
 #endif
 
 #if (defined(ENABLE_MODULE_CO) || defined(ENABLE_MODULE_ALL))
-		if(tm64.sec == tickTrd && !bTrdUpdate && (NUM_TEST_FROZEN + NUM_TEST_MEASURE))
+		if(tm64.sec >= tickTrd && !bTrdUpdate && (NUM_TEST_FROZEN + NUM_TEST_MEASURE))
 		{
 			//memcpy(&test_trd.time,&tm64,sizeof(tm64));
 			test_trd.pnt = i_gen_rand(NUM_TEST_FROZEN + NUM_TEST_MEASURE) + START_SYSPNT;
@@ -375,6 +374,11 @@ void save_log_file(FSLOG *pLog)
 	
 	i = sprintf(fname,"%s\\log\\%s",exeFullPath,pLog->name);
 	fname[i] = 0;
+	while(--i)
+	{
+		if(fname[i] == '/')
+			fname[i] = '\\';
+	}
 
 	remove(fname);
 	__create_folder(fname);
@@ -397,6 +401,23 @@ void save_log_file(FSLOG *pLog)
 
 //	delete [] buf;
 	fclose(file);
+}
+
+void print_log_file(FSLOG *pLog)
+{
+	int i,j;
+	char fname[MAX_PATH];
+
+	FSLOG_Lock(pLog);
+	//	buf = new unsigned char[pLog->pInformation->unitSize];
+	j = FSLOG_ReadFmt(pLog,-1UL,fname);
+	printf("%s",fname);
+	for( i = ((FSLOG_GetUnitCount(pLog) > pLog->pInformation->unitCount)?(FSLOG_GetUnitCount(pLog) - pLog->pInformation->unitCount):0); i < FSLOG_GetUnitCount(pLog); i++ )
+	{
+		j = FSLOG_ReadFmt(pLog,i,fname);
+		printf("%s",fname);
+	}
+	FSLOG_Unlock(pLog);
 }
 
 int write_flash(unsigned int address, const void* data, unsigned int length);
@@ -506,6 +527,20 @@ DWORD WINAPI threadDebugCmdLine(LPVOID lpParameter)
 					save_log_file(pLog);
 					printf("\n \"%s\" will be saved.\n",pLog->name);
 				}
+			}
+			break;
+		case 'p':
+		case 'P':
+			printf("file index:");
+			scanf("%d",&i);
+			i = min(i,nItem - 1);
+			pLog = FSLOG_GetFiltedItem(i);
+			if(!pLog)
+				printf("\n!Invalid selection.\n");
+			else
+			{
+				print_log_file(pLog);
+				printf("\n \"%s\" EOF.\n",pLog->name);
 			}
 			break;
 		case 'r':

@@ -103,7 +103,7 @@ static int format_header_ulog(char *buf, FSLOG *pLog)
 	return len;
 }
 
-static int format_ulog(char *buf, const void* data)
+static int format_ulog(char *buf, const void* data, unsigned int index)
 {
 	int len;
 	const LOG_ULOG *log = (const LOG_ULOG *)data;
@@ -125,54 +125,57 @@ static int format_ulog(char *buf, const void* data)
 
 
 
-static int format_soe(char *buf, const void* data)
+static int format_soe(char *buf, const void* data, unsigned int index)
 {
 	int len;
-	char strInfoAddr[4];
+	char strInfoAddr[8];
 	const LOG_SOE *log = (const LOG_SOE *)data;
 
 	if(buf)
 	{
 		format_info_addr_len(strInfoAddr,log->information);
-		len = sprintf(buf,"%s,%d,20%02d-%02d-%02d %02d:%02d:%02d.%03d\r\n",
+		len = sprintf(buf,"第%04d条：%s,%d,20%02d-%02d-%02d %02d:%02d:%02d.%03d\r\n",
+			index,
 			strInfoAddr,log->value%10,
 			log->time.year,log->time.mon,log->time.day,
 			log->time.hour,log->time.min,log->time.sec,
 			log->time.msec);
 	}
 	else
-		len = db_GetInfoAddressLength() + 1 + 23 + 2;
+		len = 10+db_GetInfoAddressLength()*2 + 3 + 23 + 2;
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
 }
 
-static int format_co(char *buf, const void* data)
+static int format_co(char *buf, const void* data, unsigned int index)
 {
 	const char *cstrTrdOperate[] = {"分","合"};
 	int len;
-	char strInfoAddr[4];
+	char strInfoAddr[8];
 	const LOG_CO *log = (const LOG_CO *)data;
 
 	if(buf)
 	{
 		format_info_addr_len(strInfoAddr,log->information);
-		len = sprintf(buf,"%s,选择,%s,20%02d-%02d-%02d %02d:%02d:%02d.%03d\r\n%s,执行,%s,20%02d-%02d-%02d %02d:%02d:%02d.%03d\r\n",
+		len = sprintf(buf,"第%02d条：%s,选择,%s,20%02d-%02d-%02d %02d:%02d:%02d.%03d\r\n第%02d条：%s,执行,%s,20%02d-%02d-%02d %02d:%02d:%02d.%03d\r\n",
+			index*2,
 			strInfoAddr,cstrTrdOperate[log->value?1:0],
 			log->time.year,log->time.mon,log->time.day,
 			log->time.hour,log->time.min,log->time.sec,
 			log->time.msec,
+			index*2+1,
 			strInfoAddr,cstrTrdOperate[log->value?1:0],
 			log->time.year,log->time.mon,log->time.day,
 			log->time.hour,log->time.min,log->time.sec,
 			log->time.msec);
 	}
 	else
-		len = (db_GetInfoAddressLength() + 1 + 4 + 2 + 23 + 2)*2;
+		len = (8+db_GetInfoAddressLength()*2 + 1 + 4 + 4 + 23 + 2)*2;
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
 }
 
-static int format_cfg(char *buf, const void* data)
+static int format_cfg(char *buf, const void* data, unsigned int index)
 {
 	const LOG_DAT *log = (const LOG_DAT *)data;
 	unsigned char *ptr = (unsigned char *)data;
@@ -191,7 +194,7 @@ static int format_cfg(char *buf, const void* data)
 
 }
 
-static int format_dat(char *buf, const void* data)
+static int format_dat(char *buf, const void* data, unsigned int index)
 {
 	// 	const char *cstrTrdOperate[] = {"分","合"};
 	// 	int len;
@@ -212,13 +215,13 @@ static int format_dat(char *buf, const void* data)
 	// 			log->time.msec);
 	// 	}
 	// 	else
-	// 		len = (db_GetInfoAddressLength() + 1 + 4 + 2 + 23 + 2)*2;
+	// 		len = (db_GetInfoAddressLength()*2 + 1 + 4 + 2 + 23 + 2)*2;
 	// 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	// 	return len;
 	return 0;
 }
 
-static int format_extreme(char *buf, const void* data)
+static int format_extreme(char *buf, const void* data, unsigned int index)
 {
 	int len;
 	char strInfoAddr[4];
@@ -258,13 +261,13 @@ static int format_extreme(char *buf, const void* data)
 				log->time.msec);
 		}
 		else
-			len = 1 + db_GetInfoAddressLength() + 1 + 7 + 1 +23;
+			len = 1 + db_GetInfoAddressLength()*2 + 1 + 7 + 1 +23;
 	}
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
 }
 
-static int format_fix(char *buf, const void* data)
+static int format_fix(char *buf, const void* data, unsigned int index)
 {
 	unsigned int i,len;
 	char strInfoAddr[4];
@@ -287,12 +290,12 @@ static int format_fix(char *buf, const void* data)
 		len += sprintf(buf + len,"\r\n");
 	}
 	else
-		len = 2 + 1 + 23 + (1 + db_GetInfoAddressLength() + 1 + 7)*GetMeasureCount() + 2;
+		len = 2 + 1 + 23 + (1 + db_GetInfoAddressLength()*2 + 1 + 7)*GetMeasureCount() + 2;
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
 }
 
-static int format_frozen(char *buf, const void* data)
+static int format_frozen(char *buf, const void* data, unsigned int index)
 {
 	unsigned int i,len;
 	char strInfoAddr[4];
@@ -315,7 +318,7 @@ static int format_frozen(char *buf, const void* data)
 		len += sprintf(buf + len,"\r\n");
 	}
 	else
-		len = 2 + 1 + 23 + (1 + db_GetInfoAddressLength() + 1 + 7)*GetFrozenCount() + 2;
+		len = 2 + 1 + 23 + (1 + db_GetInfoAddressLength()*2 + 1 + 7)*GetFrozenCount() + 2;
 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
 	return len;
 }
@@ -571,3 +574,19 @@ const FSLOG_INFORMATION infoLogFrozen = {
 	FROZEN_POINT_PER_LOG,
 };
 
+
+const FSLOG_INFORMATION *pInfoTable[] = {
+	&infoFwUpdate,
+	&infoRawSoe,
+	&infoRawTrd,
+	&infoPrintLog,
+	&infoLogUlog,
+	&infoLogSoe,
+	&infoLogCo,
+	&infoLogCfg[0],
+	&infoLogDat[0],
+	&infoLogExtreme,
+	&infoLogFixpt,
+	&infoLogFrozen,
+	NULL,
+};

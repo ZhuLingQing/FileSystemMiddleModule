@@ -46,18 +46,19 @@ typedef struct __log_fix_frozen{
 }LOG_FIXPT,LOG_FROZRN;
 
 typedef struct __log_cfg{
-	SYS_TIME64 timeStart;
-	SYS_TIME64 timeTrigger;
-	unsigned int channelOffset;
-	float dcOffset;
-	float acGain;
-	float frequency;
+// 	SYS_TIME64 timeStart;
+// 	SYS_TIME64 timeTrigger;
+// 	unsigned int channelOffset;
+// 	float dcOffset;
+// 	float acGain;
+// 	float frequency;
+	char strBuf[80];
 }LOG_CFG;
 
 typedef struct __log_dat{
 	unsigned int pointIndex;
 	unsigned int pointTime;
-	unsigned short channelValue[8];
+	unsigned short channelValue[4][8];
 }LOG_DAT;
 
 /*-----------------------------------------------------------------------------------------------*/
@@ -77,7 +78,7 @@ LOG_EXTREME * const GetMaximumTable();
 LOG_EXTREME * const GetMinimumTable();
 
 void ResetExtremeTable();
-void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue);
+void UpdateExtremeValue(const SYS_TIME64 *tm64, unsigned int index, float fValue);
 
 FSMID_POINT * const GetFrozenTable();
 unsigned int GetFrozenCount();

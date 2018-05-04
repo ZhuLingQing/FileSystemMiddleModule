@@ -34,14 +34,15 @@ static int format_header_co(char *buf, FSLOG* pLog)
 
 static int format_header_cfg(char *buf, FSLOG* pLog)
 {
-#define BOARD_STR_DEVTYP	"aabbcc"
 	int len;
 	if(buf)
 	{
-		len = sprintf(buf,"%s,%s,1999\r\n8,8A\r\n",BOARD_STR_DEVTYP,LOG_FILE_VERSION);
+		len = sprintf(buf,"%s,%s,1999\r\n8,8A\r\n",db_GetTerminalID(),                          // 终端ID
+			LOG_FILE_VERSION);                           // 版本号
 	}
 	else
 		len = 24 + 1 + strlen(LOG_FILE_VERSION) + 1 + 4 + 2 + 1 + 1 + 2 + 2;
+
 	return len;
 
 }
@@ -177,48 +178,39 @@ static int format_co(char *buf, const void* data, unsigned int index)
 
 static int format_cfg(char *buf, const void* data, unsigned int index)
 {
-	const LOG_DAT *log = (const LOG_DAT *)data;
-	unsigned char *ptr = (unsigned char *)data;
-	int i;
+	const LOG_CFG *log = (const LOG_CFG *)data;
+	int len;
 
-	*(unsigned int *)ptr = log->pointIndex;
-	ptr+=4;
-	*(unsigned int *)ptr = log->pointTime;
-	ptr+=4;
-
-	for(i = 0; i < 8;i++)
+	if(buf)
 	{
-		*(unsigned short *)ptr = log->channelValue[i]; ptr+=2;
+		len = strlen(log->strBuf);
+		memcpy(buf,log->strBuf,len);
 	}
-	return (8 + 2 * 8);
+	else
+		len = 79;
 
+	return len;
 }
 
 static int format_dat(char *buf, const void* data, unsigned int index)
 {
-	// 	const char *cstrTrdOperate[] = {"分","合"};
-	// 	int len;
-	// 	char strInfoAddr[4];
-	// 	const LOG_CO *log = (const LOG_CO *)data;
-	// 
-	// 	if(buf)
-	// 	{
-	// 		format_info_addr_len(strInfoAddr,log->information);
-	// 		len = sprintf(buf,"%s,选择,%s,20%02d-%02d-%02d %02d:%02d:%02d.%03d\r\n%s,执行,%s,20%02d-%02d-%02d %02d:%02d:%02d.%03d\r\n",
-	// 			strInfoAddr,cstrTrdOperate[log->value?1:0],
-	// 			log->time.year,log->time.mon,log->time.day,
-	// 			log->time.hour,log->time.min,log->time.sec,
-	// 			log->time.msec,
-	// 			strInfoAddr,cstrTrdOperate[log->value?1:0],
-	// 			log->time.year,log->time.mon,log->time.day,
-	// 			log->time.hour,log->time.min,log->time.sec,
-	// 			log->time.msec);
-	// 	}
-	// 	else
-	// 		len = (db_GetInfoAddressLength()*2 + 1 + 4 + 2 + 23 + 2)*2;
-	// 	//fsmid_assert(len <= maxlen,__FILE__,__LINE__);
-	// 	return len;
-	return 0;
+	const LOG_DAT *log = (const LOG_DAT *)data;
+	unsigned char *ptr = (unsigned char *)data;
+	int i,j;
+
+	for(i = 0; i < 4;i++)
+	{
+		*(unsigned int *)ptr = log->pointIndex;
+		ptr+=4;
+		*(unsigned int *)ptr = log->pointTime;
+		ptr+=4;
+
+		for(j = 0; j < 8;j++)
+		{
+			*(unsigned short *)ptr = log->channelValue[i][j]; ptr+=2;
+		}
+	}
+	return ((8 + 2 * 8) * 4);
 }
 
 static int format_extreme(char *buf, const void* data, unsigned int index)

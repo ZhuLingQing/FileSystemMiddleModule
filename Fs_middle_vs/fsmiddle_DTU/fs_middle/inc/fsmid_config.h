@@ -18,8 +18,6 @@
     
     #define FIXPT_POINT_PER_LOG             24
     #define FROZEN_POINT_PER_LOG            25
-    #define CFG_POINT_PER_LOG               1                                           // CFG文件只需要一个记录实际即可
-    #define DAT_POINT_PER_LOG               (96*8)                                      // DAT文件记录8个周波,每个周波96个点
     
     #define FIFTEEN_MINUTE_CONDITION(tm64)  (!(tm64.sec%5))
 #define DAILY_CONDITION(tm64)				(!((tm64.hour*60+tm64.min)%2) && !tm64.sec)
@@ -39,8 +37,6 @@
     
     #define FIXPT_POINT_PER_LOG             96
     #define FROZEN_POINT_PER_LOG            97
-    #define CFG_POINT_PER_LOG               1                                           // CFG文件只需要一个记录实际即可
-    #define DAT_POINT_PER_LOG               (96*8)                                      // DAT文件记录8个周波,每个周波96个点
     
 #define FIFTEEN_MINUTE_CONDITION(tm64)		(!(tm64.min%15) && !tm64.sec)
 #define DAILY_CONDITION(tm64)				(!tm64.hour && !tm64.min)
@@ -92,12 +88,12 @@
 #define NUM_LOG_LOG_CFG				5
 #define START_BLOCK_LOG_CFG			(START_BLOCK_LOG_CO + NUM_BLOCK_LOG_CO)
 #define NUM_BLOCK_LOG_CFG			1
-#define NUM_POINT_LOG_CFG			1
+#define NUM_POINT_LOG_CFG			9
 
 #define NUM_LOG_LOG_DAT				5
 #define START_BLOCK_LOG_DAT			(START_BLOCK_LOG_CFG + (NUM_LOG_LOG_CFG*NUM_BLOCK_LOG_CFG))
 #define NUM_BLOCK_LOG_DAT			5
-#define NUM_POINT_LOG_DAT			(96*8)
+#define NUM_POINT_LOG_DAT			(96*8/4)
 
 #define FIX_END_BLOCK				(START_BLOCK_LOG_DAT + (NUM_LOG_LOG_DAT*NUM_BLOCK_LOG_DAT))
 
@@ -107,10 +103,10 @@
 #error "INVALID DYNAMIC_START_BLOCK!"
 #endif
 
-// #define ENABLE_MODULE_ALL
+#define ENABLE_MODULE_ALL
 // #define ENABLE_MODULE_LOG
-#define ENABLE_MODULE_SOE
-#define ENABLE_MODULE_CO
+// #define ENABLE_MODULE_SOE
+// #define ENABLE_MODULE_CO
 // #define ENABLE_MODULE_CFG_DAT
 // #define ENABLE_MODULE_EXV
 // #define ENABLE_MODULE_FIXPT

@@ -233,13 +233,13 @@ void ResetExtremeTable()
 	}
 }
 
-void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
+void UpdateExtremeValue(const SYS_TIME64 *tm64, unsigned int index, float fValue)
 {
 	if(tableMaximum[index].value >= 0 && fValue >= 0)
 	{
 		if(fValue > tableMaximum[index].value)
 		{
-			memcpy(&tableMaximum[index].time,t64,sizeof(SYS_TIME64));
+			memcpy(&tableMaximum[index].time,tm64,sizeof(SYS_TIME64));
 			tableMaximum[index].value = fValue;
 			//fsmid_info("MAX[%2d] = %7.3f\r\n",index,fValue);
 		}
@@ -248,7 +248,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 	{
 		if( fValue * -1.0 > tableMaximum[index].value)
 		{
-			memcpy(&tableMaximum[index].time,t64,sizeof(SYS_TIME64));
+			memcpy(&tableMaximum[index].time,tm64,sizeof(SYS_TIME64));
 			tableMaximum[index].value = fValue;
 			//fsmid_info("MAX[%2d] = %7.3f\r\n",index,fValue);
 		}
@@ -257,7 +257,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 	{
 		if( fValue > tableMaximum[index].value * -1.0 )
 		{
-			memcpy(&tableMaximum[index].time,t64,sizeof(SYS_TIME64));
+			memcpy(&tableMaximum[index].time,tm64,sizeof(SYS_TIME64));
 			tableMaximum[index].value = fValue;
 			//fsmid_info("MAX[%2d] = %7.3f\r\n",index,fValue);
 		}
@@ -266,7 +266,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 	{
 		if(fValue < tableMaximum[index].value)
 		{
-			memcpy(&tableMaximum[index].time,t64,sizeof(SYS_TIME64));
+			memcpy(&tableMaximum[index].time,tm64,sizeof(SYS_TIME64));
 			tableMaximum[index].value = fValue;
 			//fsmid_info("MAX[%2d] = %7.3f\r\n",index,fValue);
 		}
@@ -276,7 +276,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 	{
 		if(fValue < tableMinimum[index].value)
 		{
-			memcpy(&tableMinimum[index].time,t64,sizeof(SYS_TIME64));
+			memcpy(&tableMinimum[index].time,tm64,sizeof(SYS_TIME64));
 			tableMinimum[index].value = fValue;
 			//fsmid_info("MIN[%2d] = %7.3f\r\n",index,fValue);
 		}
@@ -285,7 +285,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 	{
 		if( fValue * -1.0 < tableMinimum[index].value)
 		{
-			memcpy(&tableMinimum[index].time,t64,sizeof(SYS_TIME64));
+			memcpy(&tableMinimum[index].time,tm64,sizeof(SYS_TIME64));
 			tableMinimum[index].value = fValue;
 			//fsmid_info("MIN[%2d] = %7.3f\r\n",index,fValue);
 		}
@@ -294,7 +294,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 	{
 		if( fValue < tableMinimum[index].value * -1.0 )
 		{
-			memcpy(&tableMinimum[index].time,t64,sizeof(SYS_TIME64));
+			memcpy(&tableMinimum[index].time,tm64,sizeof(SYS_TIME64));
 			tableMinimum[index].value = fValue;
 			//fsmid_info("MIN[%2d] = %7.3f\r\n",index,fValue);
 		}
@@ -303,7 +303,7 @@ void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue)
 	{
 		if(fValue > tableMinimum[index].value)
 		{
-			memcpy(&tableMinimum[index].time,t64,sizeof(SYS_TIME64));
+			memcpy(&tableMinimum[index].time,tm64,sizeof(SYS_TIME64));
 			tableMinimum[index].value = fValue;
 			//fsmid_info("MIN[%2d] = %7.3f\r\n",index,fValue);
 		}

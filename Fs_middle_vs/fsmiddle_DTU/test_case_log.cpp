@@ -9,7 +9,7 @@
 #define TEST_UNIT_SIZE			128//16
 #define TEST_BLOCK_SIZE			4096
 
-#define SIM_FLASH_SIZE			(16<<20)
+#define SIM_FLASH_SIZE			(8<<20)
 #define FLASH_FILE_NAME			"simFLASH.bin"
 #define TEST_DATA_FNAME			"Romeo and Juliet.txt"
 #define TEST_RESL_FNAME			"result.txt"
@@ -60,7 +60,7 @@ int erase_flash(unsigned int address, unsigned int length)
 	return 0;
 }
 
-int format_file(char *buf, const void* data)
+int format_file(char *buf, const void* data, unsigned int index)
 {
 	if(!buf) return TEST_UNIT_SIZE;
 	memcpy(buf,data,TEST_UNIT_SIZE);

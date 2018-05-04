@@ -340,7 +340,7 @@ void FSMID_CreateLogs(const SYS_TIME64 *tm64)
 // 	FSLOG_LockWrite(logSoe,&soe);
 // }
 
-static void FSMID_SoeApp(const SYS_TIME64 *t64)
+static void FSMID_SoeApp(const SYS_TIME64 *tm64)
 {
 #if (defined(ENABLE_MODULE_SOE) || defined(ENABLE_MODULE_ALL))
 //	int i, j;
@@ -444,7 +444,7 @@ static void FSMID_SoeApp(const SYS_TIME64 *t64)
 #endif
 }
 
-static void FSMID_CoApp(const SYS_TIME64 *t64)
+static void FSMID_CoApp(const SYS_TIME64 *tm64)
 {
 #if (defined(ENABLE_MODULE_CO) || defined(ENABLE_MODULE_ALL))
 	struDpa10xFrm *pfrm;
@@ -462,13 +462,13 @@ static void FSMID_CoApp(const SYS_TIME64 *t64)
 	pfrm = dpa101appl.pport->pfrm;//指向第1帧
 	while (pEvent = db_GetTrd(handleDca))
 	{
-		memcpy(&trd.time,t64,sizeof(trd.time));
+		memcpy(&trd.time,tm64,sizeof(trd.time));
 		memcpy(&trd.trd,pEvent,sizeof(trd.trd));
 		FSLOG_LockWrite(logRawTrd,&trd);
 
 		ppntcfg = dpa10x_SearchSyspntInFrms(dpa101appl.pport, pEvent->pnt, TypeidDo, &frm, &pnt, &otherpnt, &inf);//查找系统点对应的点配置等，并得到inf
 
-		memcpy(&co.time,t64,sizeof(co.time));
+		memcpy(&co.time,tm64,sizeof(co.time));
 		co.information = inf;
 		co.value = pEvent->val;
 		FSLOG_LockWrite(logCo,&co);
@@ -476,7 +476,7 @@ static void FSMID_CoApp(const SYS_TIME64 *t64)
 #endif
 }
 
-static void FSMID_LogApp(const SYS_TIME64 *t64)
+static void FSMID_LogApp(const SYS_TIME64 *tm64)
 {
 #if (defined(ENABLE_MODULE_LOG) || defined(ENABLE_MODULE_ALL))
 	PRTLOGEVENT *prtEvent;
@@ -490,7 +490,7 @@ static void FSMID_LogApp(const SYS_TIME64 *t64)
 #endif
 }
 
-static void FSMID_ExtremeApp(const SYS_TIME64 *t64)
+static void FSMID_ExtremeApp(const SYS_TIME64 *tm64)
 {
 #if (defined(ENABLE_MODULE_EXV) || defined(ENABLE_MODULE_ALL))
 	unsigned int i;
@@ -498,19 +498,19 @@ static void FSMID_ExtremeApp(const SYS_TIME64 *t64)
 
 	for( i = 0, point = GetMeasureTable(); i < GetMeasureCount(); i++,point++ )
 	{
-		UpdateExtremeValue(t64, i, db_GetAi(handleDpa,point->point));
+		UpdateExtremeValue(tm64, i, db_GetAi(handleDpa,point->point));
 	}
 #endif
 }
 
-static void FSMID_FixptApp(const SYS_TIME64 *t64)
+static void FSMID_FixptApp(const SYS_TIME64 *tm64)
 {
 #if (defined(ENABLE_MODULE_FIXPT) || defined(ENABLE_MODULE_ALL))
 	unsigned int i;
 	FSMID_POINT *point;
 	LOG_FIXPT *pFixpt = (LOG_FIXPT*)fsmid_malloc(unsigned char,sizeof(LOG_FIXPT) + GetMeasureCount()*sizeof(float));
 
-	memcpy(&pFixpt->time,t64,sizeof(pFixpt->time));
+	memcpy(&pFixpt->time,tm64,sizeof(pFixpt->time));
 	pFixpt->numUnit = GetMeasureCount();
 	for( i = 0, point = GetMeasureTable(); i < GetMeasureCount(); i++,point++ )
 	{
@@ -522,14 +522,14 @@ static void FSMID_FixptApp(const SYS_TIME64 *t64)
 #endif
 }
 
-static void FSMID_FrozenApp(const SYS_TIME64 *t64)
+static void FSMID_FrozenApp(const SYS_TIME64 *tm64)
 {
 #if (defined(ENABLE_MODULE_FROZEN) || defined(ENABLE_MODULE_ALL))
 	unsigned int i;
 	FSMID_POINT *point;
 	LOG_FIXPT *pFrozen = (LOG_FIXPT*)fsmid_malloc(unsigned char,sizeof(LOG_FIXPT) + GetFrozenCount()*sizeof(float));
 
-	memcpy(&pFrozen->time,t64,sizeof(pFrozen->time));
+	memcpy(&pFrozen->time,tm64,sizeof(pFrozen->time));
 	pFrozen->numUnit = GetFrozenCount();
 	for( i = 0, point = GetFrozenTable(); i < GetFrozenCount(); i++,point++ )
 	{
@@ -538,6 +538,105 @@ static void FSMID_FrozenApp(const SYS_TIME64 *t64)
 	if(pFrozen->numUnit)
 		FSLOG_LockWrite(*logFrozen,pFrozen);
 	fsmid_free(pFrozen);
+#endif
+}
+
+// 每次调用就生产一个新的CFG文件
+// 该任务有Dtu3016进行调用
+// 参数，当前时间，通道起始（0或者8），采集频率
+void FSMID_CfgApp(const SYS_TIME64 *tm64,unsigned int chnoffset,float freq)
+{
+#if (defined(ENABLE_MODULE_CFG_DAT) || defined(ENABLE_MODULE_ALL))
+	LOG_CFG *pCfg = (LOG_CFG*)fsmid_malloc(unsigned char,sizeof(LOG_CFG));;
+	SYS_TIME64 tmpTime;
+	unsigned short mSec;
+
+	if(!logCfg) return;
+
+	// 计算前导时间,当前触发时间-3个周波的时间
+	mSec = (unsigned short)(1000.0 / freq * 3);
+	memcpy(&tmpTime,tm64,sizeof(SYS_TIME64));
+	if(tmpTime.msec >= mSec) 
+		tmpTime.msec -= mSec;
+	else
+	{
+		mSec -= tmpTime.msec;
+		tmpTime.msec = 1000 - mSec;
+		if(tmpTime.sec > 0) 
+			tmpTime.sec--;
+		else
+		{
+			tmpTime.sec = 59;
+			if(tmpTime.min > 0)
+				tmpTime.min--;
+			else
+			{
+				tmpTime.min = 59;
+				if(tmpTime.hour > 0) tmpTime.hour--;
+				else tmpTime.hour = 23;
+			}
+		}
+	}
+
+	// 直流偏移在记录的时候,减去,这里就保留为0
+	// 直接输入9个条目信息
+	memset(pCfg->strBuf,0,80);
+	sprintf(pCfg->strBuf,"%d,IA,A,CT,A,0.015019053,0.000000,0.000000,-32767,372727,1.000000,1.000000,S\r\n",chnoffset);
+	FSLOG_LockWrite(*logCfg,pCfg);
+	memset(pCfg->strBuf,0,80);
+	sprintf(pCfg->strBuf,"%d,IB,B,CT,A,0.015019053,0.000000,0.000000,-32767,372727,1.000000,1.000000,S\r\n",chnoffset+1);
+	FSLOG_LockWrite(*logCfg,pCfg);
+	memset(pCfg->strBuf,0,80);
+	sprintf(pCfg->strBuf,"%d,IC,0,CT,A,0.015019053,0.000000,0.000000,-32767,372727,1.000000,1.000000,S\r\n",chnoffset+2);
+	FSLOG_LockWrite(*logCfg,pCfg);
+	memset(pCfg->strBuf,0,80);
+	sprintf(pCfg->strBuf,"%d,I0,0,CT,A,0.015019053,0.000000,0.000000,-32767,372727,1.000000,1.000000,S\r\n",chnoffset+3);
+	FSLOG_LockWrite(*logCfg,pCfg);
+	memset(pCfg->strBuf,0,80);
+	sprintf(pCfg->strBuf,"%d,UA,A,PT,V,0.015019053,0.000000,0.000000,-32767,372727,1.000000,1.000000,S\r\n",chnoffset+4);
+	FSLOG_LockWrite(*logCfg,pCfg);
+	memset(pCfg->strBuf,0,80);
+	sprintf(pCfg->strBuf,"%d,UB,B,PT,V,0.015019053,0.000000,0.000000,-32767,372727,1.000000,1.000000,S\r\n",chnoffset+5);
+	FSLOG_LockWrite(*logCfg,pCfg);
+	memset(pCfg->strBuf,0,80);
+	sprintf(pCfg->strBuf,"%d,UC,0,PT,V,0.015019053,0.000000,0.000000,-32767,372727,1.000000,1.000000,S\r\n",chnoffset+6);
+	FSLOG_LockWrite(*logCfg,pCfg);
+	memset(pCfg->strBuf,0,80);
+	sprintf(pCfg->strBuf,"%d,U0,0,PT,V,0.015019053,0.000000,0.000000,-32767,372727,1.000000,1.000000,S\r\n",chnoffset+7);
+	FSLOG_LockWrite(*logCfg,pCfg);
+	memset(pCfg->strBuf,0,80);
+	sprintf(pCfg->strBuf,"%.6f\r\n1\n\r,%.6f,768\r\n%02d/%02d%04d,%02d:%02d:%02d.%06d\r\n%02d/%02d%04d,%02d:%02d:%02d.%06d\r\nBINARY\r\n\1.000000",
+		freq,freq*96,
+		tmpTime.mon,tmpTime.day,tmpTime.year,tmpTime.min,tmpTime.sec,tmpTime.msec*1000,
+		tm64->mon,tm64->day,tm64->year,tm64->hour,tm64->min,tm64->sec,tm64->msec*1000);
+	FSLOG_LockWrite(*logCfg,pCfg);
+	fsmid_free(pCfg);
+
+	// 保存为文件,并移动指针
+	if(nCfg < NUMBER_OF_CFG) nCfg++;
+	/* 确认一下 移动指针是否正确 */
+		logCfg++;
+	if(logCfg > &logCfgTable[NUMBER_OF_CFG-1]) logCfg = &logCfgTable[0];
+
+	if((*logCfg)->unitNumber) FSLOG_Clear(*logCfg);                /* 不理解 确认一下问题,有没有问题*/
+	memcpy(&(*logCfg)->timeCreate,tm64,sizeof(SYS_TIME64));
+	FSMID_FormatWaveName(*logFixpt,"cfg",tm64);
+#endif
+}
+void FSMID_SaveDat(const SYS_TIME64 *tm64)
+{
+#if (defined(ENABLE_MODULE_CFG_DAT) || defined(ENABLE_MODULE_ALL))
+
+	if(!logDat) return;
+
+	if(nFrozen < NUMBER_OF_FRZ) nFrozen++;
+	/* 同 logCfg一样，需确认 */
+	logDat ++;
+	if(logDat > &logDatTable[4]+ NUMBER_OF_DAT) logDat = &logDatTable[0];
+
+	if((*logDat)->unitNumber) FSLOG_Clear(*logDat);  /* 不理解 确认一下问题*/
+	memcpy(&(*logDat)->timeCreate,tm64,sizeof(SYS_TIME64));
+	FSMID_FormatLogName(*logDat,"dat",tm64);
 #endif
 }
 

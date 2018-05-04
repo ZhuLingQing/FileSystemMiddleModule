@@ -1,17 +1,15 @@
 #ifndef _FSMID_DEF_H_
 #define _FSMID_DEF_H_
 
-#include "fsmid_port.h"
 #include "sysTimerV1.h"
 
 
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 extern "C" {
 #endif
 
-#define FILE_VERSION		"1.0"
-
 #pragma pack(push,1)
+/**************************************************************************************************/
 
 #ifndef NULL
 #define NULL	0
@@ -25,9 +23,6 @@ extern "C" {
 #define xor(a,b)		((!(a)&&(b))||((a)&&!(b)))
 #endif
 
-
-// #define FSMID_MAX_PATH				(128)
-// #define FSMID_SAFTY_BUFFER_SIZE		(512)
 
 //#define __DEF_CP56TIME2A
 #ifndef __DEF_CP56TIME2A
@@ -53,7 +48,8 @@ typedef struct __cp56time2a {
 }CP56TIME2A;
 #endif
 
-enum __fsmid_result{
+enum __fsmid_result
+{
 	FSMIDR_OK = 0,
 	FSMIDR_GENERAL,
 	FSMIDR_LEAK_MEMORY,
@@ -65,18 +61,17 @@ enum __fsmid_result{
 	FSMIDR_POINT_NOT_NULL,
 };
 
+/*-----------------------------------------------------------------------------------------------*/
+typedef struct __fslog_interface
+{
+	int (*write)(unsigned int address, const void* data, unsigned int length);
+	int (*read)(unsigned int address, void* data, unsigned int length);
+	int (*erase)(unsigned int address, unsigned int length);
+}FSLOG_INTERFACE;
 
 #pragma pack(pop)
 
-extern unsigned int bitmap2number(unsigned char* bitmap, unsigned int length);
-extern void number2bitmap(unsigned int number, unsigned char* bitmap, unsigned int length);
-
-bool systimeSameDay(const SYS_TIME64 *tm1, const SYS_TIME64 *tm2);
-bool unixSameDay(unsigned int tm1, unsigned int tm2);
-extern unsigned int time_sys2unix(const SYS_TIME64* systime);
-extern void time_unix2sys(unsigned int unix, SYS_TIME64 *systime);
-
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 };
 #endif
 

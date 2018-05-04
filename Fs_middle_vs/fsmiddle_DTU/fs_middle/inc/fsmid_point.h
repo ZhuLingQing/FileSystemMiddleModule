@@ -5,25 +5,27 @@
 #include "sysTimerV1.h"
 #include "dbmsV1.h"
 
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 extern "C" {
 #endif
 
 #pragma pack(push,1)
 
-// typedef struct __log_ulog{
-// 	SYS_TIME64 time;
-// 	unsigned char type;
-// 	unsigned char sts;
-// 	char buf[64];
-// }LOG_ULOG;
+/**************************************************************************************************/
+typedef SOEEVENT LOG_RAWSOE;
+
+typedef struct __log_raw_trd{
+	SYS_TIME64 time;
+	TRDEVENT   trd;
+}LOG_RAWTRD;
+
 typedef ULOGEVENT LOG_ULOG;
 
 typedef struct __log_soe_co{
 	SYS_TIME64 time;
 	unsigned int information;
 	unsigned char value;
-	unsigned char reserved[3];
+    unsigned char reserved[3];
 }LOG_SOE,LOG_CO;
 
 #define EXTREME_MAX_MARK		0xFFFF
@@ -43,9 +45,23 @@ typedef struct __log_fix_frozen{
 	float value[0];
 }LOG_FIXPT,LOG_FROZRN;
 
+typedef struct __log_cfg{
+// 	SYS_TIME64 timeStart;
+// 	SYS_TIME64 timeTrigger;
+// 	unsigned int channelOffset;
+// 	float dcOffset;
+// 	float acGain;
+// 	float frequency;
+	char strBuf[80];
+}LOG_CFG;
 
+typedef struct __log_dat{
+	unsigned int pointIndex;
+	unsigned int pointTime;
+	unsigned short channelValue[4][8];
+}LOG_DAT;
 
-
+/*-----------------------------------------------------------------------------------------------*/
 typedef struct __struct_fsmid_point{
 	unsigned int information;
 	unsigned short point;
@@ -54,7 +70,7 @@ typedef struct __struct_fsmid_point{
 
 #pragma pack(pop)
 
-void FSMID_InitConfig();
+int FSMID_InitConfig();
 
 FSMID_POINT * const GetMeasureTable();
 unsigned int GetMeasureCount();
@@ -62,12 +78,12 @@ LOG_EXTREME * const GetMaximumTable();
 LOG_EXTREME * const GetMinimumTable();
 
 void ResetExtremeTable();
-void UpdateExtremeValue(const SYS_TIME64 *t64, unsigned int index, float fValue);
+void UpdateExtremeValue(const SYS_TIME64 *tm64, unsigned int index, float fValue);
 
 FSMID_POINT * const GetFrozenTable();
 unsigned int GetFrozenCount();
 
-#ifndef __cplusplus
+#if (defined(WIN32) && !defined(__cplusplus))
 };
 #endif
 

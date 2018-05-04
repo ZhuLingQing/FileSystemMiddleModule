@@ -9,24 +9,31 @@
 extern void test_log(TCHAR *path);
 extern bool init_dtu_enviroment(TCHAR *path);
 extern void FSMID_Task(void*);
-char exeFullPath[256];
+char exeFullPath[MAX_PATH];
 
 extern DWORD WINAPI threadConsole(LPVOID lpParameter);
+extern DWORD WINAPI threadProtocol(LPVOID lpParameter);
+
+void getCurrentFolder(char path[])
+{
+	char *p;
+	GetModuleFileName(NULL,path,MAX_PATH);
+	p = path + strlen(path) - 1;
+	while(*p != '\\' && p != path)
+		p--;
+	*p = '\0';
+}
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	char *p;
-	GetModuleFileName(NULL,exeFullPath,MAX_PATH);
-	p = exeFullPath + strlen(exeFullPath) - 1;
-	while(*p != '\\' && p != exeFullPath)
-		p--;
-	*p = '\0';
-#if 0
-	test_log(exeFullPath);
-#else
+	getCurrentFolder(exeFullPath);
+
+	//test_log(exeFullPath);
+#if 1
 	HANDLE t1 = CreateThread(NULL, 0, threadConsole, exeFullPath, 0, NULL); 
-	Sleep(100);
-	FSMID_Task(NULL);
+	WaitForSingleObject(t1,INFINITE);
+#else
+	HANDLE t1 = CreateThread(NULL, 0, threadProtocol, exeFullPath, 0, NULL); 
 	WaitForSingleObject(t1,INFINITE);
 #endif
 	_getch();
